@@ -724,7 +724,7 @@ async function loadAdmin(){
     overviewBody.innerHTML += `<tr><td>${e.employee_no}</td><td>${e.name}</td><td><select style="padding:4px 6px; font-size:12px;" onchange="updateEmployeeDept('${e.id}', this.value)">${deptOptionsForRow(e.department_id)}</select></td><td>${e.hire_date}</td><td>${tenureLabel(e.hire_date)}</td><td>${total}</td><td>${used}</td><td>${Math.max(total-used,0)}</td></tr>`;
   }
 
-  const { data: pending } = await sb.from('leave_requests').select('*, employees(name)').order('created_at',{ascending:false});
+  const { data: pending } = await sb.from('leave_requests').select('*, employees!leave_requests_employee_id_fkey(name)').order('created_at',{ascending:false});
   const pbody = document.getElementById('pendingLeaveBody');
   pbody.innerHTML = '';
   (pending||[]).forEach(r=>{
@@ -746,7 +746,7 @@ async function reviewLeave(id, status){
   loadAdmin();
 }
 async function loadOvertimeAdmin(){
-  const { data } = await sb.from('overtime_requests').select('*, employees(name)').order('created_at',{ascending:false});
+  const { data } = await sb.from('overtime_requests').select('*, employees!overtime_requests_employee_id_fkey(name)').order('created_at',{ascending:false});
   const body = document.getElementById('pendingOvertimeBody');
   body.innerHTML = '';
   (data||[]).forEach(r=>{
@@ -893,7 +893,7 @@ async function generateReports(){
   const end = document.getElementById('repEnd').value;
   if (!start || !end) return;
 
-  const { data: att } = await sb.from('attendance').select('*, employees(name)')
+  const { data: att } = await sb.from('attendance').select('*, employees!attendance_employee_id_fkey(name)')
     .gte('work_date', start).lte('work_date', end).order('work_date');
   reportAttCache = att || [];
   document.getElementById('repAttBody').innerHTML = reportAttCache.map(r=>
@@ -901,7 +901,7 @@ async function generateReports(){
   ).join('');
   document.getElementById('repAttEmpty').classList.toggle('hidden', reportAttCache.length>0);
 
-  const { data: ot } = await sb.from('overtime_requests').select('*, employees(name)')
+  const { data: ot } = await sb.from('overtime_requests').select('*, employees!overtime_requests_employee_id_fkey(name)')
     .eq('status','approved').gte('work_date', start).lte('work_date', end);
   const sums = {};
   (ot||[]).forEach(r=>{
@@ -942,3 +942,4 @@ function exportOvertimeCSV(){
 </script>
 </body>
 </html>
+
