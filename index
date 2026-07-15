@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>差勤管理系統</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --navy:#1B2A4A;
+    --navy-light:#2C4270;
+    --paper:#F7F8FA;
+    --paper-card:#FFFFFF;
+    --gold:#C9A227;
+    --ink:#22252B;
+    --muted:#6B7280;
+    --line:#E3E6EC;
+    --danger:#B4443B;
+    --ok:#2F6F4E;
+    --radius:6px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:'Noto Sans TC',sans-serif; min-height:100vh;
+  }
+  h1,h2,h3{ font-family:'Noto Serif TC',serif; font-weight:700; margin:0 0 4px; }
+  .hidden{display:none !important;}
+
+  /* ---------- 登入畫面 ---------- */
+  #loginScreen{
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(160deg, var(--navy) 0%, var(--navy-light) 100%);
+  }
+  .login-card{
+    background:var(--paper-card); width:360px; padding:40px 32px;
+    border-radius:var(--radius); box-shadow:0 20px 60px rgba(0,0,0,.35);
+    border-top:4px solid var(--gold);
+  }
+  .login-card .eyebrow{ letter-spacing:.15em; font-size:11px; color:var(--gold); font-weight:700; }
+  .login-card h1{ font-size:22px; color:var(--navy); margin-bottom:20px; }
+  label{ display:block; font-size:13px; color:var(--muted); margin:14px 0 6px; }
+  input, select{
+    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:4px;
+    font-family:inherit; font-size:14px; background:#fff;
+  }
+  input:focus, select:focus{ outline:2px solid var(--navy-light); outline-offset:1px; }
+  button{
+    cursor:pointer; font-family:inherit; border:none; border-radius:4px;
+    font-weight:700; font-size:14px; padding:10px 16px;
+  }
+  button:disabled{ opacity:.45; cursor:not-allowed; }
+  .btn-primary{ background:var(--navy); color:#fff; width:100%; margin-top:20px; }
+  .btn-primary:hover{ background:var(--navy-light); }
+  .btn-gold{ background:var(--gold); color:var(--navy); }
+  .btn-outline{ background:#fff; border:1px solid var(--line) !important; color:var(--ink); }
+  .btn-danger{ background:var(--danger); color:#fff; }
+  #loginError{ color:var(--danger); font-size:13px; margin-top:10px; min-height:16px; }
+
+  /* ---------- 主應用 ---------- */
+  #appScreen{ display:none; }
+  header.topbar{
+    background:var(--navy); color:#fff; padding:16px 28px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  header.topbar .brand{ font-family:'Noto Serif TC',serif; font-size:18px; }
+  header.topbar .brand .eyebrow{ display:block; font-size:10px; letter-spacing:.2em; color:var(--gold); font-weight:700; }
+  header.topbar .who{ font-size:13px; opacity:.85; display:flex; align-items:center; gap:14px; }
+
+  nav.tabs{
+    display:flex; gap:2px; background:#fff; border-bottom:1px solid var(--line);
+    padding:0 28px; overflow-x:auto;
+  }
+  nav.tabs button{
+    background:transparent; color:var(--muted); padding:14px 16px; border-radius:0;
+    border-bottom:3px solid transparent; font-weight:500; white-space:nowrap;
+  }
+  nav.tabs button.active{ color:var(--navy); border-bottom-color:var(--gold); font-weight:700; }
+
+  main{ padding:28px; max-width:1100px; margin:0 auto; }
+  .card{
+    background:var(--paper-card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:22px; margin-bottom:20px;
+  }
+  .card h2{ font-size:16px; color:var(--navy); }
+  .grid3{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+  .stat{
+    background:var(--paper); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px; text-align:center;
+  }
+  .stat .num{ font-family:'Noto Serif TC',serif; font-size:30px; color:var(--navy); font-weight:700; }
+  .stat .label{ font-size:12px; color:var(--muted); margin-top:4px; }
+
+  table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  th, td{ text-align:left; padding:9px 10px; border-bottom:1px solid var(--line); }
+  th{ color:var(--muted); font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:.03em; }
+  tr:hover td{ background:#FAFBFD; }
+  .badge{ padding:2px 9px; border-radius:20px; font-size:12px; font-weight:700; display:inline-block; }
+  .badge-ok{ background:#E7F3EC; color:var(--ok); }
+  .badge-pending{ background:#FDF3DC; color:#8A6A16; }
+  .badge-bad{ background:#FBEAE8; color:var(--danger); }
+
+  .form-row{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .actions{ margin-top:16px; display:flex; gap:10px; }
+  .msg{ font-size:13px; margin-top:10px; }
+  .msg.ok{ color:var(--ok); } .msg.bad{ color:var(--danger); }
+  .empty{ color:var(--muted); font-size:13px; padding:14px 0; }
+  .hint{ font-size:12px; color:var(--muted); margin-top:-6px; }
+  @media (max-width:640px){ .grid3,.form-row{ grid-template-columns:1fr; } main{padding:16px;} header.topbar{padding:14px 16px;} nav.tabs{padding:0 16px;} }
+</style>
+</head>
+<body>
+
+<!-- ============ 登入畫面 ============ -->
+<div id="loginScreen">
+  <div class="login-card">
+    <span class="eyebrow">差勤管理系統</span>
+    <h1>請登入</h1>
+    <label for="loginEmpNo">員工編號</label>
+    <input id="loginEmpNo" type="text" placeholder="例如 A0123">
+    <label for="loginPw">密碼</label>
+    <input id="loginPw" type="password" placeholder="••••••••">
+    <button class="btn-primary" onclick="doLogin()">登入</button>
+    <div id="loginError"></div>
+    <div style="margin-top:18px; font-size:12px; color:var(--muted);">
+      尚未有帳號?請聯絡管理者為你建立。
+    </div>
+  </div>
+</div>
+
+<!-- ============ 主應用畫面 ============ -->
+<div id="appScreen">
+  <header class="topbar">
+    <div class="brand"><span class="eyebrow">ATTENDANCE SYSTEM</span>差勤管理系統</div>
+    <div class="who">
+      <span id="whoName"></span>
+      <button class="btn-outline" onclick="doLogout()">登出</button>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabsNav">
+    <button data-tab="dashboard" class="active" onclick="switchTab('dashboard')">儀表板</button>
+    <button data-tab="checkin" onclick="switchTab('checkin')">打卡</button>
+    <button data-tab="leave" onclick="switchTab('leave')">請假申請</button>
+    <button data-tab="dayoff" onclick="switchTab('dayoff')">排休</button>
+    <button data-tab="overtime" onclick="switchTab('overtime')">加班申請</button>
+    <button data-tab="admin" onclick="switchTab('admin')" id="tabAdminBtn" class="hidden">員工與審核管理</button>
+    <button data-tab="schedule" onclick="switchTab('schedule')" id="tabScheduleBtn" class="hidden">排班管理</button>
+    <button data-tab="reports" onclick="switchTab('reports')" id="tabReportsBtn" class="hidden">報表</button>
+  </nav>
+
+  <main>
+    <!-- 儀表板 -->
+    <section id="tab-dashboard">
+      <div class="card">
+        <h2>我的特休狀況</h2>
+        <div class="grid3" id="leaveStats" style="margin-top:14px;"></div>
+      </div>
+      <div class="card">
+        <h2>本月出勤記錄</h2>
+        <table id="attTable"><thead><tr><th>日期</th><th>上班</th><th>下班</th><th>狀態</th><th>備註</th></tr></thead>
+        <tbody id="attTableBody"></tbody></table>
+        <div class="empty hidden" id="attEmpty">尚無本月出勤記錄。</div>
+      </div>
+    </section>
+
+    <!-- 打卡 -->
+    <section id="tab-checkin" class="hidden">
+      <div class="card">
+        <h2>今日打卡</h2>
+        <p style="color:var(--muted); font-size:13px;" id="todayLabel"></p>
+        <p class="hint">打卡時系統會請求你的位置權限,僅在公司範圍內(半徑 150 公尺)才能成功打卡,請於彈出視窗選擇「允許」。</p>
+        <div class="actions">
+          <button class="btn-gold" onclick="clockIn()">上班打卡</button>
+          <button class="btn-outline" onclick="clockOut()">下班打卡</button>
+        </div>
+        <div class="msg" id="clockMsg"></div>
+      </div>
+    </section>
+
+    <!-- 請假申請(須主管審核) -->
+    <section id="tab-leave" class="hidden">
+      <div class="card">
+        <h2>提出請假申請</h2>
+        <p class="hint">特休、事假、病假、公假等,送出後需等待主管核准才會生效。</p>
+        <div class="form-row">
+          <div>
+            <label>假別</label>
+            <select id="leaveType">
+              <option value="特休">特休</option>
+              <option value="事假">事假</option>
+              <option value="病假">病假</option>
+              <option value="公假">公假</option>
+              <option value="其他">其他</option>
+            </select>
+          </div>
+          <div>
+            <label>天數</label>
+            <input id="leaveDays" type="number" min="0.5" step="0.5" placeholder="例如 1">
+          </div>
+          <div>
+            <label>起始日期</label>
+            <input id="leaveStart" type="date">
+          </div>
+          <div>
+            <label>結束日期</label>
+            <input id="leaveEnd" type="date">
+          </div>
+        </div>
+        <label>事由(選填)</label>
+        <input id="leaveReason" type="text" placeholder="簡述請假原因">
+        <div class="actions"><button class="btn-primary" style="width:auto;" onclick="submitLeave()">送出申請</button></div>
+        <div class="msg" id="leaveMsg"></div>
+      </div>
+      <div class="card">
+        <h2>我的請假紀錄</h2>
+        <table><thead><tr><th>假別</th><th>期間</th><th>天數</th><th>狀態</th></tr></thead>
+        <tbody id="myLeaveBody"></tbody></table>
+        <div class="empty hidden" id="myLeaveEmpty">尚無請假紀錄。</div>
+      </div>
+    </section>
+
+    <!-- 排休(自行安排,免審核) -->
+    <section id="tab-dayoff" class="hidden">
+      <div class="card">
+        <h2>排休申請</h2>
+        <p class="hint">原則上每週 6 個上班日(週一至週六)可以自行挑一天休息,不需要主管審核,送出後立即生效。</p>
+        <div class="form-row">
+          <div>
+            <label>選擇週別</label>
+            <select id="dayoffWeekSel" onchange="onDayoffWeekChange()">
+              <option value="0">本週</option>
+              <option value="1">下週</option>
+            </select>
+          </div>
+          <div>
+            <label>選擇要排休的日子</label>
+            <select id="dayoffDateSel"></select>
+          </div>
+        </div>
+        <p id="dayoffCurrentInfo" style="font-size:13px; color:var(--muted); margin-top:6px;"></p>
+        <div class="actions"><button class="btn-primary" id="dayoffApplyBtn" style="width:auto;" onclick="applyDayoff()">送出排休</button></div>
+        <div class="msg" id="dayoffMsg"></div>
+      </div>
+    </section>
+
+    <!-- 加班申請(須主管審核) -->
+    <section id="tab-overtime" class="hidden">
+      <div class="card">
+        <h2>加班申請</h2>
+        <div class="form-row">
+          <div><label>加班日期</label><input id="otDate" type="date"></div>
+          <div><label>加班時數</label><input id="otHours" type="number" min="0.5" step="0.5" placeholder="例如 2"></div>
+        </div>
+        <label>事由(選填)</label>
+        <input id="otReason" type="text" placeholder="簡述加班原因">
+        <div class="actions"><button class="btn-primary" style="width:auto;" onclick="submitOvertime()">送出申請</button></div>
+        <div class="msg" id="otMsg"></div>
+      </div>
+      <div class="card">
+        <h2>我的加班紀錄</h2>
+        <table><thead><tr><th>日期</th><th>時數</th><th>狀態</th></tr></thead>
+        <tbody id="myOvertimeBody"></tbody></table>
+        <div class="empty hidden" id="myOvertimeEmpty">尚無加班紀錄。</div>
+      </div>
+    </section>
+
+    <!-- 管理(admin only) -->
+    <section id="tab-admin" class="hidden">
+      <div class="card">
+        <h2>新增員工</h2>
+        <div class="form-row">
+          <div><label>員工編號(登入用,須唯一)</label><input id="newEmpNo" type="text" placeholder="例如 A0123"></div>
+          <div><label>姓名</label><input id="newEmpName" type="text"></div>
+          <div><label>Email(選填,僅供聯絡)</label><input id="newEmpEmail" type="email"></div>
+          <div><label>到職日</label><input id="newEmpHire" type="date"></div>
+          <div><label>部門</label><select id="newEmpDept"><option value="">未分類</option></select></div>
+          <div><label>角色</label>
+            <select id="newEmpRole"><option value="employee">一般員工</option><option value="admin">主管/管理者</option></select>
+          </div>
+        </div>
+        <div class="actions"><button class="btn-primary" style="width:auto;" onclick="addEmployee()">新增</button></div>
+        <div class="msg" id="empMsg"></div>
+        <p class="hint">註:新增此列後,還要到 Supabase 後台 Authentication → Add user,用「員工編號@attendance.local」當 Email 幫該員工建立密碼,他才能實際登入。</p>
+      </div>
+
+      <div class="card">
+        <h2>員工特休總覽</h2>
+        <table><thead><tr><th>員工編號</th><th>姓名</th><th>部門</th><th>到職日</th><th>年資</th><th>特休總天數</th><th>已休</th><th>剩餘</th></tr></thead>
+        <tbody id="empOverviewBody"></tbody></table>
+      </div>
+
+      <div class="card">
+        <h2>請假審核</h2>
+        <table><thead><tr><th>姓名</th><th>假別</th><th>期間</th><th>天數</th><th>狀態</th><th>操作</th></tr></thead>
+        <tbody id="pendingLeaveBody"></tbody></table>
+        <div class="empty hidden" id="pendingLeaveEmpty">目前沒有待審核的請假申請。</div>
+      </div>
+
+      <div class="card">
+        <h2>加班審核</h2>
+        <table><thead><tr><th>姓名</th><th>日期</th><th>時數</th><th>事由</th><th>狀態</th><th>操作</th></tr></thead>
+        <tbody id="pendingOvertimeBody"></tbody></table>
+        <div class="empty hidden" id="pendingOvertimeEmpty">目前沒有待審核的加班申請。</div>
+      </div>
+    </section>
+
+    <!-- 排班管理(admin only) -->
+    <section id="tab-schedule" class="hidden">
+      <div class="card">
+        <h2>部門管理</h2>
+        <div class="form-row">
+          <div><label>新增部門名稱</label><input id="newDeptName" type="text" placeholder="例如 業務部"></div>
+        </div>
+        <div class="actions"><button class="btn-primary" style="width:auto;" onclick="addDepartment()">新增部門</button></div>
+        <div class="msg" id="deptMsg"></div>
+        <table style="margin-top:14px;"><thead><tr><th>部門名稱</th></tr></thead><tbody id="deptListBody"></tbody></table>
+      </div>
+
+      <div class="card">
+        <h2>最低到班人數設定</h2>
+        <p class="hint">設定某部門在星期幾至少要有幾人排班上班,下方排班表會依此即時比對、標示不足。</p>
+        <div class="form-row">
+          <div><label>部門</label><select id="ruleDept"></select></div>
+          <div><label>星期</label>
+            <select id="ruleWeekday">
+              <option value="1">星期一</option>
+              <option value="2">星期二</option>
+              <option value="3">星期三</option>
+              <option value="4">星期四</option>
+              <option value="5">星期五</option>
+              <option value="6" selected>星期六</option>
+              <option value="0">星期日</option>
+            </select>
+          </div>
+          <div><label>最低到班人數</label><input id="ruleMinCount" type="number" min="0" step="1" placeholder="例如 2"></div>
+        </div>
+        <div class="actions"><button class="btn-primary" style="width:auto;" onclick="saveStaffingRule()">儲存設定</button></div>
+        <div class="msg" id="ruleMsg"></div>
+        <table style="margin-top:14px;"><thead><tr><th>部門</th><th>星期</th><th>最低人數</th><th>操作</th></tr></thead><tbody id="ruleListBody"></tbody></table>
+      </div>
+
+      <div class="card">
+        <h2>排班表</h2>
+        <div class="form-row" style="grid-template-columns:220px 1fr;">
+          <div><label>選擇日期</label><input id="scheduleDate" type="date" onchange="loadScheduleForDate()"></div>
+        </div>
+        <p class="hint">預設每位員工每天都算「上班」,取消勾選代表當天排休。人數不足最低要求時會以紅色標示。員工自行排休(來自「排休」頁籤)也會顯示在這裡。</p>
+        <div id="scheduleByDept" style="margin-top:14px;"></div>
+      </div>
+    </section>
+
+    <!-- 報表(admin only) -->
+    <section id="tab-reports" class="hidden">
+      <div class="card">
+        <h2>報表區間</h2>
+        <div class="form-row">
+          <div><label>起始日期</label><input id="repStart" type="date"></div>
+          <div><label>結束日期</label><input id="repEnd" type="date"></div>
+        </div>
+        <div class="actions"><button class="btn-primary" style="width:auto;" onclick="generateReports()">產生報表</button></div>
+      </div>
+
+      <div class="card">
+        <h2>出勤紀錄</h2>
+        <div class="actions" style="margin-top:0;"><button class="btn-outline" onclick="exportAttendanceCSV()">匯出 CSV</button></div>
+        <table style="margin-top:10px;"><thead><tr><th>姓名</th><th>日期</th><th>上班</th><th>下班</th><th>狀態</th></tr></thead>
+        <tbody id="repAttBody"></tbody></table>
+        <div class="empty hidden" id="repAttEmpty">此區間沒有出勤紀錄,請先設定日期並產生報表。</div>
+      </div>
+
+      <div class="card">
+        <h2>加班統計(已核准)</h2>
+        <div class="actions" style="margin-top:0;"><button class="btn-outline" onclick="exportOvertimeCSV()">匯出 CSV</button></div>
+        <table style="margin-top:10px;"><thead><tr><th>姓名</th><th>已核准加班時數合計</th></tr></thead>
+        <tbody id="repOtBody"></tbody></table>
+        <div class="empty hidden" id="repOtEmpty">此區間沒有已核准的加班紀錄。</div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+/* ================================================================
+   設定區:請在建立好 Supabase 專案後,把下面幾個值換成你自己的
+   ================================================================ */
+const SUPABASE_URL = "https://falusmyhoasguipyeohr.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZhbHVzbXlob2FzZ3VpcHllb2hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwMDg4NTIsImV4cCI6MjA5OTU4NDg1Mn0.jYDGUapHwC5fe-G5x1YgnqDozeu4d20KyxqnNq3NHo8";
+const AUTH_EMAIL_DOMAIN = "attendance.local";
+const OFFICE_LAT = 24.977405;   // ← 換成你公司的緯度
+const OFFICE_LNG = 121.245606;  // ← 換成你公司的經度
+const OFFICE_RADIUS_M = 180;
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentUser = null;
+let currentEmp = null;
+
+/* ---------------- 特休計算(勞基法第38條,到職週年制) ---------------- */
+function monthsBetween(from, to){
+  return (to.getFullYear()-from.getFullYear())*12 + (to.getMonth()-from.getMonth()) -
+         (to.getDate() < from.getDate() ? 1 : 0);
+}
+function calcAnnualLeaveEntitlement(hireDateStr, asOf = new Date()){
+  const hire = new Date(hireDateStr + "T00:00:00");
+  const months = monthsBetween(hire, asOf);
+  if (months < 6) return 0;
+  const years = Math.floor(months/12);
+  if (years < 1) return 3;
+  if (years < 2) return 7;
+  if (years < 3) return 10;
+  if (years < 5) return 14;
+  if (years < 10) return 15;
+  return Math.min(15 + (years - 9), 30);
+}
+function tenureLabel(hireDateStr, asOf = new Date()){
+  const hire = new Date(hireDateStr + "T00:00:00");
+  const months = monthsBetween(hire, asOf);
+  const y = Math.floor(months/12), m = months%12;
+  return `${y}年${m}個月`;
+}
+
+/* ---------------- 登入 / 登出 ---------------- */
+async function doLogin(){
+  const empNo = document.getElementById('loginEmpNo').value.trim();
+  const password = document.getElementById('loginPw').value;
+  const errEl = document.getElementById('loginError');
+  errEl.textContent = '';
+  if (!empNo){ errEl.textContent = '請輸入員工編號'; return; }
+  const email = `${empNo}@${AUTH_EMAIL_DOMAIN}`;
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error){ errEl.textContent = '登入失敗:員工編號或密碼錯誤'; return; }
+  await afterLogin(data.user);
+}
+async function doLogout(){
+  await sb.auth.signOut();
+  currentUser = null; currentEmp = null;
+  document.getElementById('appScreen').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+}
+async function afterLogin(user){
+  currentUser = user;
+  const { data: emp, error } = await sb.from('employees').select('*').eq('auth_id', user.id).single();
+  if (error || !emp){
+    document.getElementById('loginError').textContent = '登入成功,但找不到你的員工資料,請聯絡管理者建檔。';
+    return;
+  }
+  currentEmp = emp;
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'block';
+  document.getElementById('whoName').textContent = `${emp.name}・${emp.employee_no}(${emp.role==='admin'?'主管/管理者':'員工'})`;
+  const isAdmin = emp.role === 'admin';
+  document.getElementById('tabAdminBtn').classList.toggle('hidden', !isAdmin);
+  document.getElementById('tabScheduleBtn').classList.toggle('hidden', !isAdmin);
+  document.getElementById('tabReportsBtn').classList.toggle('hidden', !isAdmin);
+  document.getElementById('todayLabel').textContent = '今天是 ' + new Date().toLocaleDateString('zh-TW');
+  document.getElementById('leaveStart').valueAsDate = new Date();
+  document.getElementById('leaveEnd').valueAsDate = new Date();
+  document.getElementById('otDate').valueAsDate = new Date();
+  await loadDashboard();
+}
+
+/* ---------------- Tab 切換 ---------------- */
+function switchTab(tab){
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  ['dashboard','checkin','leave','dayoff','overtime','admin','schedule','reports'].forEach(t=>{
+    document.getElementById('tab-'+t).classList.toggle('hidden', t!==tab);
+  });
+  if (tab==='leave') loadMyLeave();
+  if (tab==='dayoff') loadDayoffTab();
+  if (tab==='overtime') loadMyOvertime();
+  if (tab==='admin') loadAdmin();
+  if (tab==='schedule') loadScheduleTab();
+  if (tab==='reports'){ /* 等使用者選日期按產生報表 */ }
+}
+
+/* ---------------- 儀表板 ---------------- */
+async function loadDashboard(){
+  const total = calcAnnualLeaveEntitlement(currentEmp.hire_date);
+  const { data: usedRows } = await sb.from('leave_requests')
+    .select('days').eq('employee_id', currentEmp.id).eq('leave_type','特休').eq('status','approved');
+  const used = (usedRows||[]).reduce((s,r)=>s+Number(r.days),0);
+  document.getElementById('leaveStats').innerHTML = `
+    <div class="stat"><div class="num">${total}</div><div class="label">特休總天數(年資 ${tenureLabel(currentEmp.hire_date)})</div></div>
+    <div class="stat"><div class="num">${used}</div><div class="label">已休天數</div></div>
+    <div class="stat"><div class="num">${Math.max(total-used,0)}</div><div class="label">剩餘天數</div></div>
+  `;
+
+  const now = new Date();
+  const first = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
+  const { data: att } = await sb.from('attendance').select('*')
+    .eq('employee_id', currentEmp.id).gte('work_date', first).order('work_date', {ascending:false});
+  const body = document.getElementById('attTableBody');
+  body.innerHTML = '';
+  (att||[]).forEach(r=>{
+    body.innerHTML += `<tr><td>${r.work_date}</td><td>${r.check_in||'-'}</td><td>${r.check_out||'-'}</td><td>${statusBadge(r.status)}</td><td>${r.note||''}</td></tr>`;
+  });
+  document.getElementById('attEmpty').classList.toggle('hidden', (att||[]).length>0);
+}
+function statusBadge(s){
+  const cls = s==='正常' ? 'badge-ok' : (s==='曠職'?'badge-bad':'badge-pending');
+  return `<span class="badge ${cls}">${s}</span>`;
+}
+
+/* ---------------- 打卡定位檢查 ---------------- */
+function getPosition(){
+  return new Promise((resolve, reject)=>{
+    if (!navigator.geolocation){ reject(new Error('此瀏覽器不支援定位功能')); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve(pos.coords),
+      err => reject(new Error(
+        err.code === 1 ? '請允許瀏覽器存取你的位置,才能打卡' : '無法取得目前位置,請確認定位已開啟'
+      )),
+      { enableHighAccuracy:true, timeout:10000 }
+    );
+  });
+}
+function distanceMeters(lat1, lng1, lat2, lng2){
+  const R = 6371000;
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2-lat1), dLng = toRad(lng2-lng1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+async function checkAtOffice(){
+  const coords = await getPosition();
+  const dist = distanceMeters(coords.latitude, coords.longitude, OFFICE_LAT, OFFICE_LNG);
+  if (dist > OFFICE_RADIUS_M){
+    const err = new Error(`目前位置距離公司約 ${Math.round(dist)} 公尺,超出允許範圍(${OFFICE_RADIUS_M} 公尺),無法打卡`);
+    err.coords = coords;
+    throw err;
+  }
+  return coords;
+}
+
+/* ---------------- 打卡 ---------------- */
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function timeStr(){ return new Date().toTimeString().slice(0,8); }
+async function clockIn(){
+  const msgEl = document.getElementById('clockMsg');
+  msgEl.innerHTML = '<span class="msg">定位中…</span>';
+  let coords;
+  try { coords = await checkAtOffice(); }
+  catch(e){ msgEl.innerHTML = `<span class="msg bad">${e.message}</span>`; return; }
+  const { error } = await sb.from('attendance').upsert({
+    employee_id: currentEmp.id, work_date: todayStr(), check_in: timeStr(), status:'正常',
+    check_in_lat: coords.latitude, check_in_lng: coords.longitude
+  }, { onConflict: 'employee_id,work_date' });
+  msgEl.innerHTML = error
+    ? `<span class="msg bad">打卡失敗:${error.message}</span>` : `<span class="msg ok">上班打卡成功,時間 ${timeStr()}(已確認在公司範圍內)</span>`;
+  if (!error) loadDashboard();
+}
+async function clockOut(){
+  const msgEl = document.getElementById('clockMsg');
+  msgEl.innerHTML = '<span class="msg">定位中…</span>';
+  let coords;
+  try { coords = await checkAtOffice(); }
+  catch(e){ msgEl.innerHTML = `<span class="msg bad">${e.message}</span>`; return; }
+  const { data: existing } = await sb.from('attendance').select('*').eq('employee_id', currentEmp.id).eq('work_date', todayStr()).maybeSingle();
+  const { error } = await sb.from('attendance').upsert({
+    employee_id: currentEmp.id, work_date: todayStr(),
+    check_in: existing ? existing.check_in : null,
+    check_out: timeStr(), status: existing ? existing.status : '正常',
+    check_in_lat: existing ? existing.check_in_lat : null,
+    check_in_lng: existing ? existing.check_in_lng : null,
+    check_out_lat: coords.latitude, check_out_lng: coords.longitude
+  }, { onConflict: 'employee_id,work_date' });
+  msgEl.innerHTML = error
+    ? `<span class="msg bad">打卡失敗:${error.message}</span>` : `<span class="msg ok">下班打卡成功,時間 ${timeStr()}(已確認在公司範圍內)</span>`;
+  if (!error) loadDashboard();
+}
+
+/* ---------------- 請假申請(須審核) ---------------- */
+async function submitLeave(){
+  const leave_type = document.getElementById('leaveType').value;
+  const days = parseFloat(document.getElementById('leaveDays').value);
+  const start_date = document.getElementById('leaveStart').value;
+  const end_date = document.getElementById('leaveEnd').value;
+  const reason = document.getElementById('leaveReason').value.trim();
+  const msgEl = document.getElementById('leaveMsg');
+  if (!days || !start_date || !end_date){ msgEl.innerHTML = '<span class="msg bad">請完整填寫天數與日期</span>'; return; }
+  const { error } = await sb.from('leave_requests').insert({
+    employee_id: currentEmp.id, leave_type, days, start_date, end_date, reason, status:'pending'
+  });
+  msgEl.innerHTML = error ? `<span class="msg bad">送出失敗:${error.message}</span>` : `<span class="msg ok">已送出,等待主管審核。</span>`;
+  if (!error) loadMyLeave();
+}
+async function loadMyLeave(){
+  const { data } = await sb.from('leave_requests').select('*').eq('employee_id', currentEmp.id).order('created_at',{ascending:false});
+  const body = document.getElementById('myLeaveBody');
+  body.innerHTML = '';
+  (data||[]).forEach(r=>{
+    const st = r.status==='approved' ? '<span class="badge badge-ok">已核准</span>' :
+               r.status==='rejected' ? '<span class="badge badge-bad">已駁回</span>' :
+               '<span class="badge badge-pending">審核中</span>';
+    body.innerHTML += `<tr><td>${r.leave_type}</td><td>${r.start_date} ~ ${r.end_date}</td><td>${r.days}</td><td>${st}</td></tr>`;
+  });
+  document.getElementById('myLeaveEmpty').classList.toggle('hidden', (data||[]).length>0);
+}
+
+/* ---------------- 排休(免審核,員工自行安排) ---------------- */
+function mondayOf(date){
+  const d = new Date(date); const day = d.getDay();
+  const diff = (day===0 ? -6 : 1-day);
+  d.setDate(d.getDate()+diff); d.setHours(0,0,0,0);
+  return d;
+}
+function fmtDate(d){ return d.toISOString().slice(0,10); }
+function weekDates(monday){
+  return Array.from({length:6}, (_,i)=>{ const d = new Date(monday); d.setDate(d.getDate()+i); return d; });
+}
+async function loadDayoffTab(){
+  document.getElementById('dayoffWeekSel').value = '0';
+  await renderDayoffForWeek(0);
+}
+function onDayoffWeekChange(){
+  renderDayoffForWeek(parseInt(document.getElementById('dayoffWeekSel').value));
+}
+async function renderDayoffForWeek(offset){
+  const monday = mondayOf(new Date());
+  monday.setDate(monday.getDate() + offset*7);
+  const days = weekDates(monday);
+  const labels = ['一','二','三','四','五','六'];
+  const sel = document.getElementById('dayoffDateSel');
+  sel.innerHTML = days.map((d,i)=>`<option value="${fmtDate(d)}">星期${labels[i]}(${fmtDate(d)})</option>`).join('');
+
+  const startStr = fmtDate(days[0]), endStr = fmtDate(days[5]);
+  const { data } = await sb.from('schedules').select('*')
+    .eq('employee_id', currentEmp.id).eq('source','self').eq('shift_status','休假')
+    .gte('work_date', startStr).lte('work_date', endStr);
+  const existing = (data||[])[0];
+  const infoEl = document.getElementById('dayoffCurrentInfo');
+  const btnEl = document.getElementById('dayoffApplyBtn');
+  if (existing){
+    infoEl.innerHTML = `這週已排休:<strong>${existing.work_date}</strong>　<button class="btn-outline" style="padding:4px 10px; font-size:12px;" onclick="cancelDayoff('${existing.id}')">取消排休</button>`;
+    btnEl.disabled = true;
+  } else {
+    infoEl.textContent = '這週尚未排休。';
+    btnEl.disabled = false;
+  }
+}
+async function applyDayoff(){
+  const dateStr = document.getElementById('dayoffDateSel').value;
+  const msgEl = document.getElementById('dayoffMsg');
+  const { error } = await sb.from('schedules').insert({
+    employee_id: currentEmp.id, work_date: dateStr, shift_status:'休假', source:'self'
+  });
+  msgEl.innerHTML = error ? `<span class="msg bad">申請失敗:${error.message}(若該日已被主管排班為上班,需請主管協助調整)</span>` : `<span class="msg ok">已排休 ${dateStr}</span>`;
+  if (!error){
+    const offset = parseInt(document.getElementById('dayoffWeekSel').value);
+    renderDayoffForWeek(offset);
+  }
+}
+async function cancelDayoff(id){
+  await sb.from('schedules').delete().eq('id', id);
+  const offset = parseInt(document.getElementById('dayoffWeekSel').value);
+  renderDayoffForWeek(offset);
+}
+
+/* ---------------- 加班申請(須審核) ---------------- */
+async function submitOvertime(){
+  const work_date = document.getElementById('otDate').value;
+  const hours = parseFloat(document.getElementById('otHours').value);
+  const reason = document.getElementById('otReason').value.trim();
+  const msgEl = document.getElementById('otMsg');
+  if (!work_date || !hours){ msgEl.innerHTML = '<span class="msg bad">請填寫日期與時數</span>'; return; }
+  const { error } = await sb.from('overtime_requests').insert({
+    employee_id: currentEmp.id, work_date, hours, reason, status:'pending'
+  });
+  msgEl.innerHTML = error ? `<span class="msg bad">送出失敗:${error.message}</span>` : `<span class="msg ok">已送出,等待主管審核。</span>`;
+  if (!error){
+    document.getElementById('otHours').value=''; document.getElementById('otReason').value='';
+    loadMyOvertime();
+  }
+}
+async function loadMyOvertime(){
+  const { data } = await sb.from('overtime_requests').select('*').eq('employee_id', currentEmp.id).order('work_date',{ascending:false});
+  const body = document.getElementById('myOvertimeBody');
+  body.innerHTML = '';
+  (data||[]).forEach(r=>{
+    const st = r.status==='approved' ? '<span class="badge badge-ok">已核准</span>' :
+               r.status==='rejected' ? '<span class="badge badge-bad">已駁回</span>' :
+               '<span class="badge badge-pending">審核中</span>';
+    body.innerHTML += `<tr><td>${r.work_date}</td><td>${r.hours}</td><td>${st}</td></tr>`;
+  });
+  document.getElementById('myOvertimeEmpty').classList.toggle('hidden', (data||[]).length>0);
+}
+
+/* ---------------- 管理員功能:員工 / 部門 ---------------- */
+let departmentsCache = [];
+const WEEKDAY_LABELS = ['日','一','二','三','四','五','六'];
+
+async function addEmployee(){
+  const employee_no = document.getElementById('newEmpNo').value.trim();
+  const name = document.getElementById('newEmpName').value.trim();
+  const email = document.getElementById('newEmpEmail').value.trim() || null;
+  const hire_date = document.getElementById('newEmpHire').value;
+  const department_id = document.getElementById('newEmpDept').value || null;
+  const role = document.getElementById('newEmpRole').value;
+  const msgEl = document.getElementById('empMsg');
+  if (!employee_no || !name || !hire_date){ msgEl.innerHTML = '<span class="msg bad">請完整填寫員工編號、姓名、到職日</span>'; return; }
+  const { error } = await sb.from('employees').insert({ employee_no, name, email, hire_date, department_id, role });
+  msgEl.innerHTML = error ? `<span class="msg bad">新增失敗:${error.message}</span>` : `<span class="msg ok">已新增 ${name}(${employee_no})。</span>`;
+  if (!error){
+    document.getElementById('newEmpNo').value='';
+    document.getElementById('newEmpName').value='';
+    document.getElementById('newEmpEmail').value='';
+    document.getElementById('newEmpHire').value='';
+    loadAdmin();
+  }
+}
+async function loadAdmin(){
+  await loadDepartments();
+  const { data: emps } = await sb.from('employees').select('*').order('hire_date');
+  const overviewBody = document.getElementById('empOverviewBody');
+  overviewBody.innerHTML = '';
+  for (const e of (emps||[])){
+    const total = calcAnnualLeaveEntitlement(e.hire_date);
+    const { data: usedRows } = await sb.from('leave_requests').select('days')
+      .eq('employee_id', e.id).eq('leave_type','特休').eq('status','approved');
+    const used = (usedRows||[]).reduce((s,r)=>s+Number(r.days),0);
+    overviewBody.innerHTML += `<tr><td>${e.employee_no}</td><td>${e.name}</td><td><select style="padding:4px 6px; font-size:12px;" onchange="updateEmployeeDept('${e.id}', this.value)">${deptOptionsForRow(e.department_id)}</select></td><td>${e.hire_date}</td><td>${tenureLabel(e.hire_date)}</td><td>${total}</td><td>${used}</td><td>${Math.max(total-used,0)}</td></tr>`;
+  }
+
+  const { data: pending } = await sb.from('leave_requests').select('*, employees(name)').order('created_at',{ascending:false});
+  const pbody = document.getElementById('pendingLeaveBody');
+  pbody.innerHTML = '';
+  (pending||[]).forEach(r=>{
+    const st = r.status==='approved' ? '<span class="badge badge-ok">已核准</span>' :
+               r.status==='rejected' ? '<span class="badge badge-bad">已駁回</span>' :
+               '<span class="badge badge-pending">審核中</span>';
+    const actions = r.status==='pending'
+      ? `<button class="btn-gold" style="padding:5px 10px; font-size:12px;" onclick="reviewLeave('${r.id}','approved')">核准</button>
+         <button class="btn-outline" style="padding:5px 10px; font-size:12px;" onclick="reviewLeave('${r.id}','rejected')">駁回</button>`
+      : '';
+    pbody.innerHTML += `<tr><td>${r.employees?.name||'-'}</td><td>${r.leave_type}</td><td>${r.start_date} ~ ${r.end_date}</td><td>${r.days}</td><td>${st}</td><td>${actions}</td></tr>`;
+  });
+  document.getElementById('pendingLeaveEmpty').classList.toggle('hidden', (pending||[]).length>0);
+
+  await loadOvertimeAdmin();
+}
+async function reviewLeave(id, status){
+  await sb.from('leave_requests').update({ status, reviewed_at: new Date().toISOString() }).eq('id', id);
+  loadAdmin();
+}
+async function loadOvertimeAdmin(){
+  const { data } = await sb.from('overtime_requests').select('*, employees(name)').order('created_at',{ascending:false});
+  const body = document.getElementById('pendingOvertimeBody');
+  body.innerHTML = '';
+  (data||[]).forEach(r=>{
+    const st = r.status==='approved' ? '<span class="badge badge-ok">已核准</span>' :
+               r.status==='rejected' ? '<span class="badge badge-bad">已駁回</span>' :
+               '<span class="badge badge-pending">審核中</span>';
+    const actions = r.status==='pending'
+      ? `<button class="btn-gold" style="padding:5px 10px; font-size:12px;" onclick="reviewOvertime('${r.id}','approved')">核准</button>
+         <button class="btn-outline" style="padding:5px 10px; font-size:12px;" onclick="reviewOvertime('${r.id}','rejected')">駁回</button>`
+      : '';
+    body.innerHTML += `<tr><td>${r.employees?.name||'-'}</td><td>${r.work_date}</td><td>${r.hours}</td><td>${r.reason||''}</td><td>${st}</td><td>${actions}</td></tr>`;
+  });
+  document.getElementById('pendingOvertimeEmpty').classList.toggle('hidden', (data||[]).length>0);
+}
+async function reviewOvertime(id, status){
+  await sb.from('overtime_requests').update({ status, reviewed_at: new Date().toISOString() }).eq('id', id);
+  loadOvertimeAdmin();
+}
+
+/* ---------------- 部門管理 ---------------- */
+async function loadDepartments(){
+  const { data } = await sb.from('departments').select('*').order('name');
+  departmentsCache = data || [];
+
+  const listBody = document.getElementById('deptListBody');
+  if (listBody) listBody.innerHTML = departmentsCache.map(d=>`<tr><td>${d.name}</td></tr>`).join('');
+
+  const newEmpDeptEl = document.getElementById('newEmpDept');
+  if (newEmpDeptEl) newEmpDeptEl.innerHTML = '<option value="">未分類</option>' + departmentsCache.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+
+  const ruleDeptEl = document.getElementById('ruleDept');
+  if (ruleDeptEl) ruleDeptEl.innerHTML = departmentsCache.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+}
+function deptOptionsForRow(selectedId){
+  let html = `<option value="" ${!selectedId?'selected':''}>未分類</option>`;
+  departmentsCache.forEach(d=>{
+    html += `<option value="${d.id}" ${d.id===selectedId?'selected':''}>${d.name}</option>`;
+  });
+  return html;
+}
+async function addDepartment(){
+  const name = document.getElementById('newDeptName').value.trim();
+  const msgEl = document.getElementById('deptMsg');
+  if (!name){ msgEl.innerHTML = '<span class="msg bad">請輸入部門名稱</span>'; return; }
+  const { error } = await sb.from('departments').insert({ name });
+  msgEl.innerHTML = error ? `<span class="msg bad">新增失敗:${error.message}</span>` : `<span class="msg ok">已新增「${name}」</span>`;
+  if (!error){ document.getElementById('newDeptName').value=''; loadDepartments(); loadStaffingRules(); }
+}
+async function updateEmployeeDept(empId, deptId){
+  await sb.from('employees').update({ department_id: deptId || null }).eq('id', empId);
+}
+
+/* ---------------- 最低到班人數設定 ---------------- */
+async function saveStaffingRule(){
+  const department_id = document.getElementById('ruleDept').value;
+  const weekday = parseInt(document.getElementById('ruleWeekday').value);
+  const min_headcount = parseInt(document.getElementById('ruleMinCount').value);
+  const msgEl = document.getElementById('ruleMsg');
+  if (!department_id || isNaN(min_headcount)){ msgEl.innerHTML = '<span class="msg bad">請選擇部門並填寫最低人數</span>'; return; }
+  const { error } = await sb.from('department_staffing_rules').upsert(
+    { department_id, weekday, min_headcount }, { onConflict: 'department_id,weekday' }
+  );
+  msgEl.innerHTML = error ? `<span class="msg bad">儲存失敗:${error.message}</span>` : `<span class="msg ok">已儲存設定</span>`;
+  if (!error){ document.getElementById('ruleMinCount').value=''; loadStaffingRules(); loadScheduleForDate(); }
+}
+async function loadStaffingRules(){
+  const { data } = await sb.from('department_staffing_rules').select('*, departments(name)').order('weekday');
+  const body = document.getElementById('ruleListBody');
+  if (!body) return;
+  body.innerHTML = (data||[]).map(r=>
+    `<tr><td>${r.departments?.name||'-'}</td><td>星期${WEEKDAY_LABELS[r.weekday]}</td><td>${r.min_headcount}</td>
+     <td><button class="btn-outline" style="padding:4px 10px; font-size:12px;" onclick="deleteStaffingRule('${r.id}')">刪除</button></td></tr>`
+  ).join('');
+}
+async function deleteStaffingRule(id){
+  await sb.from('department_staffing_rules').delete().eq('id', id);
+  loadStaffingRules();
+  loadScheduleForDate();
+}
+
+/* ---------------- 排班表(主管檢視/調整) ---------------- */
+async function loadScheduleTab(){
+  await loadDepartments();
+  await loadStaffingRules();
+  const dateEl = document.getElementById('scheduleDate');
+  if (!dateEl.value) dateEl.valueAsDate = new Date();
+  await loadScheduleForDate();
+}
+async function loadScheduleForDate(){
+  const dateEl = document.getElementById('scheduleDate');
+  const container = document.getElementById('scheduleByDept');
+  if (!dateEl || !dateEl.value){ if(container) container.innerHTML=''; return; }
+  const dateStr = dateEl.value;
+  const weekday = new Date(dateStr + 'T00:00:00').getDay();
+
+  const { data: emps } = await sb.from('employees').select('*, departments(id,name)').order('name');
+  const { data: sched } = await sb.from('schedules').select('*').eq('work_date', dateStr);
+  const schedMap = {};
+  (sched||[]).forEach(s => schedMap[s.employee_id] = s.shift_status);
+  const { data: rules } = await sb.from('department_staffing_rules').select('*').eq('weekday', weekday);
+  const ruleMap = {};
+  (rules||[]).forEach(r => ruleMap[r.department_id] = r.min_headcount);
+
+  const groups = {};
+  (emps||[]).forEach(e=>{
+    const key = e.department_id || 'none';
+    const name = e.departments?.name || '未分類';
+    if (!groups[key]) groups[key] = { name, employees: [] };
+    groups[key].employees.push(e);
+  });
+
+  container.innerHTML = Object.entries(groups).map(([deptId, g])=>{
+    const scheduledCount = g.employees.filter(e => (schedMap[e.id] || '上班') === '上班').length;
+    const min = ruleMap[deptId];
+    const badge = (min !== undefined)
+      ? `<span class="badge ${scheduledCount < min ? 'badge-bad' : 'badge-ok'}">已排 ${scheduledCount} 人 / 最低 ${min} 人${scheduledCount < min ? '(人力不足)' : ''}</span>`
+      : `<span class="badge badge-pending">已排 ${scheduledCount} 人</span>`;
+    const chips = g.employees.map(e=>{
+      const on = (schedMap[e.id] || '上班') === '上班';
+      return `<label style="display:flex; align-items:center; gap:6px; font-size:13px; background:var(--paper); border:1px solid var(--line); border-radius:20px; padding:6px 12px;">
+        <input type="checkbox" ${on?'checked':''} onchange="toggleShift('${e.id}','${dateStr}',this.checked)"> ${e.name}
+      </label>`;
+    }).join('');
+    return `<div style="margin-bottom:18px; padding-bottom:14px; border-bottom:1px solid var(--line);">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+        <strong>${g.name}</strong>${badge}
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:10px;">${chips || '<span class="empty">此部門尚無員工</span>'}</div>
+    </div>`;
+  }).join('') || '<div class="empty">尚無員工資料</div>';
+}
+async function toggleShift(employeeId, dateStr, isChecked){
+  await sb.from('schedules').upsert(
+    { employee_id: employeeId, work_date: dateStr, shift_status: isChecked ? '上班' : '休假', source: 'admin' },
+    { onConflict: 'employee_id,work_date' }
+  );
+  loadScheduleForDate();
+}
+
+/* ---------------- 報表 ---------------- */
+let reportAttCache = [], reportOtCache = [];
+async function generateReports(){
+  const start = document.getElementById('repStart').value;
+  const end = document.getElementById('repEnd').value;
+  if (!start || !end) return;
+
+  const { data: att } = await sb.from('attendance').select('*, employees(name)')
+    .gte('work_date', start).lte('work_date', end).order('work_date');
+  reportAttCache = att || [];
+  document.getElementById('repAttBody').innerHTML = reportAttCache.map(r=>
+    `<tr><td>${r.employees?.name||'-'}</td><td>${r.work_date}</td><td>${r.check_in||'-'}</td><td>${r.check_out||'-'}</td><td>${statusBadge(r.status)}</td></tr>`
+  ).join('');
+  document.getElementById('repAttEmpty').classList.toggle('hidden', reportAttCache.length>0);
+
+  const { data: ot } = await sb.from('overtime_requests').select('*, employees(name)')
+    .eq('status','approved').gte('work_date', start).lte('work_date', end);
+  const sums = {};
+  (ot||[]).forEach(r=>{
+    const name = r.employees?.name || '-';
+    sums[name] = (sums[name]||0) + Number(r.hours);
+  });
+  reportOtCache = Object.entries(sums).map(([name,hours])=>({name,hours}));
+  document.getElementById('repOtBody').innerHTML = reportOtCache.map(r=>`<tr><td>${r.name}</td><td>${r.hours}</td></tr>`).join('');
+  document.getElementById('repOtEmpty').classList.toggle('hidden', reportOtCache.length>0);
+}
+function toCSV(rows){
+  return '\uFEFF' + rows.map(row=>row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\r\n');
+}
+function downloadCSV(filename, csvContent){
+  const blob = new Blob([csvContent], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function exportAttendanceCSV(){
+  const rows = [['姓名','日期','上班','下班','狀態']].concat(
+    reportAttCache.map(r=>[r.employees?.name||'-', r.work_date, r.check_in||'', r.check_out||'', r.status])
+  );
+  downloadCSV('出勤紀錄.csv', toCSV(rows));
+}
+function exportOvertimeCSV(){
+  const rows = [['姓名','已核准加班時數合計']].concat(reportOtCache.map(r=>[r.name, r.hours]));
+  downloadCSV('加班統計.csv', toCSV(rows));
+}
+
+/* ---------------- 啟動 ---------------- */
+(async function init(){
+  const { data } = await sb.auth.getSession();
+  if (data.session){ await afterLogin(data.session.user); }
+})();
+</script>
+</body>
+</html>
