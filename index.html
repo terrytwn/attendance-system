@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
@@ -371,6 +372,18 @@
       </div>
 
       <div class="card">
+        <h2>員工出勤一覽表</h2>
+        <p class="hint">查看某一天所有員工的打卡狀況,可切換日期查看前幾天的紀錄。</p>
+        <div class="actions" style="align-items:center; margin-top:0;">
+          <button class="btn-outline" onclick="changeTeamAttDate(-1)">◀ 前一天</button>
+          <input id="teamAttDate" type="date" onchange="loadTeamAttendance()" style="width:auto;">
+          <button class="btn-outline" onclick="changeTeamAttDate(1)">後一天 ▶</button>
+        </div>
+        <table style="margin-top:14px;"><thead><tr><th>姓名</th><th>部門</th><th>上班</th><th>下班</th><th>狀態</th><th>來源</th></tr></thead>
+        <tbody id="teamAttBody"></tbody></table>
+      </div>
+
+      <div class="card">
         <h2>團隊請假總覽(今天起 7 天內)</h2>
         <table><thead><tr><th>姓名</th><th>假別</th><th>期間</th><th>狀態</th></tr></thead>
         <tbody id="teamLeaveBody"></tbody></table>
@@ -552,6 +565,7 @@ async function afterLogin(user){
   document.getElementById('otDate').valueAsDate = new Date();
   document.getElementById('corDate').valueAsDate = new Date();
   if (document.getElementById('manualDate')) document.getElementById('manualDate').valueAsDate = new Date();
+  if (document.getElementById('teamAttDate')) document.getElementById('teamAttDate').valueAsDate = new Date();
   await loadDashboard();
 }
 
@@ -900,6 +914,7 @@ async function loadAdmin(){
   await loadOvertimeAdmin();
   await populateManualEmpSelect();
   await loadPendingCorrections();
+  await loadTeamAttendance();
   await loadTeamLeaveOverview();
 }
 async function reviewLeave(id, status){
@@ -993,6 +1008,32 @@ async function reviewCorrection(id, status){
     }, { onConflict: 'employee_id,work_date' });
   }
   loadPendingCorrections();
+}
+
+/* ---------------- 團隊出勤一覽表(主管) ---------------- */
+async function loadTeamAttendance(){
+  const dateEl = document.getElementById('teamAttDate');
+  if (!dateEl) return;
+  if (!dateEl.value) dateEl.valueAsDate = new Date();
+  const dateStr = dateEl.value;
+  const { data: emps } = await sb.from('employees').select('id,name,employee_no,departments(name)').order('name');
+  const { data: att } = await sb.from('attendance').select('*').eq('work_date', dateStr);
+  const attMap = {};
+  (att||[]).forEach(r=>{ attMap[r.employee_id] = r; });
+  const body = document.getElementById('teamAttBody');
+  body.innerHTML = (emps||[]).map(e=>{
+    const r = attMap[e.id];
+    const src = !r ? '-' : r.source==='manual' ? '手動' : r.source==='correction' ? '補打卡核准' : '本人';
+    const statusCell = r ? statusBadge(r.status) : '<span class="badge badge-bad">未打卡</span>';
+    return `<tr><td>${e.name}</td><td>${e.departments?.name||'-'}</td><td>${r?.check_in||'-'}</td><td>${r?.check_out||'-'}</td><td>${statusCell}</td><td>${src}</td></tr>`;
+  }).join('');
+}
+function changeTeamAttDate(delta){
+  const dateEl = document.getElementById('teamAttDate');
+  const d = new Date((dateEl.value || todayStr()) + 'T00:00:00');
+  d.setDate(d.getDate() + delta);
+  dateEl.valueAsDate = d;
+  loadTeamAttendance();
 }
 
 /* ---------------- 團隊請假總覽(主管) ---------------- */
