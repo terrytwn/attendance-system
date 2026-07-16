@@ -821,6 +821,25 @@ function reviewInfoText(r, reviewerObj){
   return r.review_note ? `${name}:${r.review_note}` : name;
 }
 /* ---------------- 請假申請(須審核) ---------------- */
+async function checkLeaveOverlap(employee_id, start_date, end_date, unit, amount){
+  const dates = [];
+  let cursor = new Date(start_date + 'T00:00:00');
+  const endD = new Date(end_date + 'T00:00:00');
+  while (cursor <= endD){ dates.push(fmtDate(cursor)); cursor.setDate(cursor.getDate()+1); }
+  const { data: existing } = await sb.from('leave_requests').select('start_date,end_date,unit,hours')
+    .eq('employee_id', employee_id).in('status',['pending','approved']);
+  const willAdd = unit === 'hour' ? amount : 8;
+  for (const d of dates){
+    let used = 0;
+    (existing||[]).forEach(r=>{
+      if (d >= r.start_date && d <= r.end_date) used += r.unit === 'hour' ? Number(r.hours) : 8;
+    });
+    if (used + willAdd > 8){
+      return `${d} 這天已經有 ${used} 小時的請假紀錄(含審核中),加上這次會超過每天 8 小時上限,無法送出。`;
+    }
+  }
+  return null;
+}
 async function submitLeave(){
   const leave_type = document.getElementById('leaveType').value;
   const unit = document.getElementById('leaveUnit').value;
@@ -833,6 +852,8 @@ async function submitLeave(){
   let days, hours;
   if (unit === 'hour'){ hours = amount; days = Math.round((amount/8)*100)/100; end_date = start_date; }
   else { days = amount; hours = null; }
+  const conflictMsg = await checkLeaveOverlap(currentEmp.id, start_date, end_date, unit, amount);
+  if (conflictMsg){ msgEl.innerHTML = `<span class="msg bad">${conflictMsg}</span>`; return; }
   const { error } = await sb.from('leave_requests').insert({
     employee_id: currentEmp.id, leave_type, unit, days, hours, start_date, end_date, reason, status:'pending'
   });
@@ -1169,6 +1190,8 @@ async function submitProxyRequest(){
     let days, hours;
     if (unit === 'hour'){ hours = amount; days = Math.round((amount/8)*100)/100; end_date = start_date; }
     else { days = amount; hours = null; }
+    const conflictMsg = await checkLeaveOverlap(employee_id, start_date, end_date, unit, amount);
+    if (conflictMsg){ msgEl.innerHTML = `<span class="msg bad">${conflictMsg}</span>`; return; }
     ({ error } = await sb.from('leave_requests').insert({
       employee_id, leave_type, unit, days, hours, start_date, end_date, reason,
       status: 'approved', submitted_by: currentEmp.id, reviewed_by: currentEmp.id, reviewed_at: new Date().toISOString()
