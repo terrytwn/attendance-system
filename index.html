@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
@@ -108,7 +107,18 @@
   .msg.ok{ color:var(--ok); } .msg.bad{ color:var(--danger); }
   .empty{ color:var(--muted); font-size:13px; padding:14px 0; }
   .hint{ font-size:12px; color:var(--muted); margin-top:-6px; }
-  @media (max-width:640px){ .grid3,.form-row{ grid-template-columns:1fr; } main{padding:16px;} header.topbar{padding:14px 16px;} nav.tabs{padding:0 16px;} }
+
+  .cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+  .cal-head{ font-size:12px; color:var(--muted); text-align:center; padding:4px 0; font-weight:700; }
+  .cal-cell{ border:1px solid var(--line); border-radius:4px; min-height:80px; padding:6px; font-size:11.5px; background:var(--paper); }
+  .cal-cell.other-month{ opacity:.35; }
+  .cal-cell.today{ border-color:var(--gold); border-width:2px; }
+  .cal-date{ font-weight:700; color:var(--navy); margin-bottom:4px; }
+  .cal-tag{ display:block; background:#FDF3DC; color:#8A6A16; border-radius:3px; padding:1px 4px; margin-bottom:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cal-tag.off{ background:#E7F0FB; color:#2C4270; }
+  .source-tag{ font-size:11px; color:var(--muted); }
+
+  @media (max-width:640px){ .grid3,.form-row{ grid-template-columns:1fr; } main{padding:16px;} header.topbar{padding:14px 16px;} nav.tabs{padding:0 16px;} .cal-cell{min-height:56px;} }
 </style>
 </head>
 <body>
@@ -146,6 +156,7 @@
     <button data-tab="leave" onclick="switchTab('leave')">請假申請</button>
     <button data-tab="dayoff" onclick="switchTab('dayoff')">排休</button>
     <button data-tab="overtime" onclick="switchTab('overtime')">加班申請</button>
+    <button data-tab="calendar" onclick="switchTab('calendar')">行事曆</button>
     <button data-tab="admin" onclick="switchTab('admin')" id="tabAdminBtn" class="hidden">員工與審核管理</button>
     <button data-tab="schedule" onclick="switchTab('schedule')" id="tabScheduleBtn" class="hidden">排班管理</button>
     <button data-tab="reports" onclick="switchTab('reports')" id="tabReportsBtn" class="hidden">報表</button>
@@ -159,8 +170,14 @@
         <div class="grid3" id="leaveStats" style="margin-top:14px;"></div>
       </div>
       <div class="card">
+        <h2>事假 / 病假使用狀況(依當年度計算)</h2>
+        <table><thead><tr><th>假別</th><th>年度上限</th><th>已使用</th><th>剩餘</th></tr></thead>
+        <tbody id="leaveQuotaBody"></tbody></table>
+        <p class="hint">事假上限 14 天、病假上限 30 天為預設值,若與貴機關規定不同,可在程式碼的 ANNUAL_LEAVE_QUOTA 常數調整。</p>
+      </div>
+      <div class="card">
         <h2>本月出勤記錄</h2>
-        <table id="attTable"><thead><tr><th>日期</th><th>上班</th><th>下班</th><th>狀態</th><th>備註</th></tr></thead>
+        <table id="attTable"><thead><tr><th>日期</th><th>上班</th><th>下班</th><th>狀態</th><th>來源</th><th>備註</th></tr></thead>
         <tbody id="attTableBody"></tbody></table>
         <div class="empty hidden" id="attEmpty">尚無本月出勤記錄。</div>
       </div>
@@ -177,6 +194,26 @@
           <button class="btn-outline" onclick="clockOut()">下班打卡</button>
         </div>
         <div class="msg" id="clockMsg"></div>
+      </div>
+
+      <div class="card">
+        <h2>補打卡申請</h2>
+        <p class="hint">忘記打卡、定位失敗或有其他特殊情況時,可提出補打卡申請並敘明原因,不需要定位,送出後需等待主管核准才會生效。</p>
+        <div class="form-row">
+          <div><label>日期</label><input id="corDate" type="date"></div>
+          <div><label>上班時間(選填)</label><input id="corCheckIn" type="time"></div>
+          <div><label>下班時間(選填)</label><input id="corCheckOut" type="time"></div>
+        </div>
+        <label>原因(必填)</label>
+        <input id="corReason" type="text" placeholder="請說明未能正常打卡的原因">
+        <div class="actions"><button class="btn-primary" style="width:auto;" onclick="submitCorrection()">送出補打卡申請</button></div>
+        <div class="msg" id="corMsg"></div>
+      </div>
+      <div class="card">
+        <h2>我的補打卡申請紀錄</h2>
+        <table><thead><tr><th>日期</th><th>上班</th><th>下班</th><th>原因</th><th>狀態</th></tr></thead>
+        <tbody id="myCorrectionBody"></tbody></table>
+        <div class="empty hidden" id="myCorrectionEmpty">尚無補打卡申請紀錄。</div>
       </div>
     </section>
 
@@ -230,10 +267,7 @@
         <div class="form-row">
           <div>
             <label>選擇週別</label>
-            <select id="dayoffWeekSel" onchange="onDayoffWeekChange()">
-              <option value="0">本週</option>
-              <option value="1">下週</option>
-            </select>
+            <select id="dayoffWeekSel" onchange="onDayoffWeekChange()"></select>
           </div>
           <div>
             <label>選擇要排休的日子</label>
@@ -267,6 +301,26 @@
       </div>
     </section>
 
+    <!-- 行事曆(全員可見) -->
+    <section id="tab-calendar" class="hidden">
+      <div class="card">
+        <h2>行事曆</h2>
+        <p class="hint">顯示每天已核准的請假與排休狀況,方便查看今天或未來誰不在。</p>
+        <div class="actions" style="align-items:center;">
+          <button class="btn-outline" onclick="changeCalendarMonth(-1)">◀ 上個月</button>
+          <strong id="calendarMonthLabel" style="font-size:15px; color:var(--navy);"></strong>
+          <button class="btn-outline" onclick="changeCalendarMonth(1)">下個月 ▶</button>
+        </div>
+        <div id="calendarGrid" style="margin-top:16px;"></div>
+      </div>
+      <div class="card">
+        <h2>本週請假 / 排休名單</h2>
+        <table><thead><tr><th>姓名</th><th>類型</th><th>期間/日期</th></tr></thead>
+        <tbody id="calWeekBody"></tbody></table>
+        <div class="empty hidden" id="calWeekEmpty">本週沒有人請假或排休。</div>
+      </div>
+    </section>
+
     <!-- 管理(admin only) -->
     <section id="tab-admin" class="hidden">
       <div class="card">
@@ -284,6 +338,43 @@
         <div class="actions"><button class="btn-primary" style="width:auto;" onclick="addEmployee()">新增</button></div>
         <div class="msg" id="empMsg"></div>
         <p class="hint">註:新增此列後,還要到 Supabase 後台 Authentication → Add user,用「員工編號@attendance.local」當 Email 幫該員工建立密碼,他才能實際登入。</p>
+      </div>
+
+      <div class="card">
+        <h2>員工出勤補登(手動)</h2>
+        <p class="hint">主管可直接為員工新增或修改某日的打卡紀錄,系統會標示為「手動」並記錄操作者,員工在儀表板上也看得到這筆是誰補登的。</p>
+        <div class="form-row">
+          <div><label>員工</label><select id="manualEmp"></select></div>
+          <div><label>日期</label><input id="manualDate" type="date"></div>
+          <div><label>上班時間(選填)</label><input id="manualCheckIn" type="time"></div>
+          <div><label>下班時間(選填)</label><input id="manualCheckOut" type="time"></div>
+          <div><label>狀態</label>
+            <select id="manualStatus">
+              <option value="正常">正常</option>
+              <option value="遲到">遲到</option>
+              <option value="早退">早退</option>
+              <option value="曠職">曠職</option>
+            </select>
+          </div>
+        </div>
+        <label>備註(選填)</label>
+        <input id="manualNote" type="text" placeholder="補登原因或說明">
+        <div class="actions"><button class="btn-primary" style="width:auto;" onclick="submitManualAttendance()">儲存出勤紀錄</button></div>
+        <div class="msg" id="manualMsg"></div>
+      </div>
+
+      <div class="card">
+        <h2>補打卡申請審核</h2>
+        <table><thead><tr><th>姓名</th><th>日期</th><th>申請上班</th><th>申請下班</th><th>原因</th><th>狀態</th><th>操作</th></tr></thead>
+        <tbody id="pendingCorrectionBody"></tbody></table>
+        <div class="empty hidden" id="pendingCorrectionEmpty">目前沒有待審核的補打卡申請。</div>
+      </div>
+
+      <div class="card">
+        <h2>團隊請假總覽(今天起 7 天內)</h2>
+        <table><thead><tr><th>姓名</th><th>假別</th><th>期間</th><th>狀態</th></tr></thead>
+        <tbody id="teamLeaveBody"></tbody></table>
+        <div class="empty hidden" id="teamLeaveEmpty">近期沒有人請假。</div>
       </div>
 
       <div class="card">
@@ -459,24 +550,29 @@ async function afterLogin(user){
   document.getElementById('leaveStart').valueAsDate = new Date();
   document.getElementById('leaveEnd').valueAsDate = new Date();
   document.getElementById('otDate').valueAsDate = new Date();
+  document.getElementById('corDate').valueAsDate = new Date();
+  if (document.getElementById('manualDate')) document.getElementById('manualDate').valueAsDate = new Date();
   await loadDashboard();
 }
 
 /* ---------------- Tab 切換 ---------------- */
 function switchTab(tab){
   document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
-  ['dashboard','checkin','leave','dayoff','overtime','admin','schedule','reports'].forEach(t=>{
+  ['dashboard','checkin','leave','dayoff','overtime','calendar','admin','schedule','reports'].forEach(t=>{
     document.getElementById('tab-'+t).classList.toggle('hidden', t!==tab);
   });
+  if (tab==='checkin') loadMyCorrections();
   if (tab==='leave') loadMyLeave();
   if (tab==='dayoff') loadDayoffTab();
   if (tab==='overtime') loadMyOvertime();
+  if (tab==='calendar') loadCalendarTab();
   if (tab==='admin') loadAdmin();
   if (tab==='schedule') loadScheduleTab();
   if (tab==='reports'){ /* 等使用者選日期按產生報表 */ }
 }
 
 /* ---------------- 儀表板 ---------------- */
+const ANNUAL_LEAVE_QUOTA = { '事假': 14, '病假': 30 };
 async function loadDashboard(){
   const total = calcAnnualLeaveEntitlement(currentEmp.hire_date);
   const { data: usedRows } = await sb.from('leave_requests')
@@ -488,14 +584,29 @@ async function loadDashboard(){
     <div class="stat"><div class="num">${Math.max(total-used,0)}</div><div class="label">剩餘天數</div></div>
   `;
 
+  const year = new Date().getFullYear();
+  const yearStart = `${year}-01-01`, yearEnd = `${year}-12-31`;
+  const quotaBody = document.getElementById('leaveQuotaBody');
+  quotaBody.innerHTML = '';
+  for (const [type, quota] of Object.entries(ANNUAL_LEAVE_QUOTA)){
+    const { data: rows } = await sb.from('leave_requests').select('days')
+      .eq('employee_id', currentEmp.id).eq('leave_type', type).eq('status','approved')
+      .gte('start_date', yearStart).lte('start_date', yearEnd);
+    const usedDays = (rows||[]).reduce((s,r)=>s+Number(r.days),0);
+    quotaBody.innerHTML += `<tr><td>${type}</td><td>${quota}</td><td>${usedDays}</td><td>${Math.max(quota-usedDays,0)}</td></tr>`;
+  }
+
   const now = new Date();
   const first = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
-  const { data: att } = await sb.from('attendance').select('*')
+  const { data: att } = await sb.from('attendance').select('*, employees!attendance_created_by_fkey(name)')
     .eq('employee_id', currentEmp.id).gte('work_date', first).order('work_date', {ascending:false});
   const body = document.getElementById('attTableBody');
   body.innerHTML = '';
   (att||[]).forEach(r=>{
-    body.innerHTML += `<tr><td>${r.work_date}</td><td>${r.check_in||'-'}</td><td>${r.check_out||'-'}</td><td>${statusBadge(r.status)}</td><td>${r.note||''}</td></tr>`;
+    const src = r.source === 'manual' ? `<span class="source-tag">手動(${r.employees?.name||'主管'})</span>`
+              : r.source === 'correction' ? `<span class="source-tag">補打卡核准</span>`
+              : `<span class="source-tag">本人</span>`;
+    body.innerHTML += `<tr><td>${r.work_date}</td><td>${r.check_in||'-'}</td><td>${r.check_out||'-'}</td><td>${statusBadge(r.status)}</td><td>${src}</td><td>${r.note||''}</td></tr>`;
   });
   document.getElementById('attEmpty').classList.toggle('hidden', (att||[]).length>0);
 }
@@ -546,7 +657,7 @@ async function clockIn(){
   catch(e){ msgEl.innerHTML = `<span class="msg bad">${e.message}</span>`; return; }
   const { error } = await sb.from('attendance').upsert({
     employee_id: currentEmp.id, work_date: todayStr(), check_in: timeStr(), status:'正常',
-    check_in_lat: coords.latitude, check_in_lng: coords.longitude
+    check_in_lat: coords.latitude, check_in_lng: coords.longitude, source:'self'
   }, { onConflict: 'employee_id,work_date' });
   msgEl.innerHTML = error
     ? `<span class="msg bad">打卡失敗:${error.message}</span>` : `<span class="msg ok">上班打卡成功,時間 ${timeStr()}(已確認在公司範圍內)</span>`;
@@ -565,7 +676,8 @@ async function clockOut(){
     check_out: timeStr(), status: existing ? existing.status : '正常',
     check_in_lat: existing ? existing.check_in_lat : null,
     check_in_lng: existing ? existing.check_in_lng : null,
-    check_out_lat: coords.latitude, check_out_lng: coords.longitude
+    check_out_lat: coords.latitude, check_out_lng: coords.longitude,
+    source: existing ? (existing.source||'self') : 'self'
   }, { onConflict: 'employee_id,work_date' });
   msgEl.innerHTML = error
     ? `<span class="msg bad">打卡失敗:${error.message}</span>` : `<span class="msg ok">下班打卡成功,時間 ${timeStr()}(已確認在公司範圍內)</span>`;
@@ -611,8 +723,19 @@ function fmtDate(d){ return d.toISOString().slice(0,10); }
 function weekDates(monday){
   return Array.from({length:6}, (_,i)=>{ const d = new Date(monday); d.setDate(d.getDate()+i); return d; });
 }
+const DAYOFF_MAX_WEEKS_AHEAD = 53; // 最多可排到約一年後
 async function loadDayoffTab(){
-  document.getElementById('dayoffWeekSel').value = '0';
+  const weekSel = document.getElementById('dayoffWeekSel');
+  const options = [];
+  for (let offset=0; offset<=DAYOFF_MAX_WEEKS_AHEAD; offset++){
+    const monday = mondayOf(new Date());
+    monday.setDate(monday.getDate() + offset*7);
+    const sunday = new Date(monday); sunday.setDate(sunday.getDate()+5);
+    const label = offset===0 ? '本週' : offset===1 ? '下週' : `第 ${offset} 週後`;
+    options.push(`<option value="${offset}">${label}(${fmtDate(monday)} ~ ${fmtDate(sunday)})</option>`);
+  }
+  weekSel.innerHTML = options.join('');
+  weekSel.value = '0';
   await renderDayoffForWeek(0);
 }
 function onDayoffWeekChange(){
@@ -688,6 +811,41 @@ async function loadMyOvertime(){
   document.getElementById('myOvertimeEmpty').classList.toggle('hidden', (data||[]).length>0);
 }
 
+/* ---------------- 補打卡申請(員工,無定位,須審核) ---------------- */
+async function submitCorrection(){
+  const work_date = document.getElementById('corDate').value;
+  const check_in = document.getElementById('corCheckIn').value || null;
+  const check_out = document.getElementById('corCheckOut').value || null;
+  const reason = document.getElementById('corReason').value.trim();
+  const msgEl = document.getElementById('corMsg');
+  if (!work_date || !reason){ msgEl.innerHTML = '<span class="msg bad">請填寫日期與原因</span>'; return; }
+  if (!check_in && !check_out){ msgEl.innerHTML = '<span class="msg bad">請至少填寫上班或下班時間其中一項</span>'; return; }
+  const { error } = await sb.from('clock_correction_requests').insert({
+    employee_id: currentEmp.id, work_date, check_in, check_out, reason, status:'pending'
+  });
+  msgEl.innerHTML = error ? `<span class="msg bad">送出失敗:${error.message}</span>` : `<span class="msg ok">已送出,等待主管核准。</span>`;
+  if (!error){
+    document.getElementById('corCheckIn').value = '';
+    document.getElementById('corCheckOut').value = '';
+    document.getElementById('corReason').value = '';
+    loadMyCorrections();
+  }
+}
+async function loadMyCorrections(){
+  const { data } = await sb.from('clock_correction_requests').select('*')
+    .eq('employee_id', currentEmp.id).order('work_date',{ascending:false});
+  const body = document.getElementById('myCorrectionBody');
+  if (!body) return;
+  body.innerHTML = '';
+  (data||[]).forEach(r=>{
+    const st = r.status==='approved' ? '<span class="badge badge-ok">已核准</span>' :
+               r.status==='rejected' ? '<span class="badge badge-bad">已駁回</span>' :
+               '<span class="badge badge-pending">審核中</span>';
+    body.innerHTML += `<tr><td>${r.work_date}</td><td>${r.check_in||'-'}</td><td>${r.check_out||'-'}</td><td>${r.reason||''}</td><td>${st}</td></tr>`;
+  });
+  document.getElementById('myCorrectionEmpty').classList.toggle('hidden', (data||[]).length>0);
+}
+
 /* ---------------- 管理員功能:員工 / 部門 ---------------- */
 let departmentsCache = [];
 const WEEKDAY_LABELS = ['日','一','二','三','四','五','六'];
@@ -740,6 +898,9 @@ async function loadAdmin(){
   document.getElementById('pendingLeaveEmpty').classList.toggle('hidden', (pending||[]).length>0);
 
   await loadOvertimeAdmin();
+  await populateManualEmpSelect();
+  await loadPendingCorrections();
+  await loadTeamLeaveOverview();
 }
 async function reviewLeave(id, status){
   await sb.from('leave_requests').update({ status, reviewed_at: new Date().toISOString() }).eq('id', id);
@@ -764,6 +925,93 @@ async function loadOvertimeAdmin(){
 async function reviewOvertime(id, status){
   await sb.from('overtime_requests').update({ status, reviewed_at: new Date().toISOString() }).eq('id', id);
   loadOvertimeAdmin();
+}
+
+/* ---------------- 員工出勤補登(主管手動) ---------------- */
+async function populateManualEmpSelect(){
+  const sel = document.getElementById('manualEmp');
+  if (!sel) return;
+  const { data } = await sb.from('employees').select('id,name,employee_no').order('name');
+  sel.innerHTML = (data||[]).map(e=>`<option value="${e.id}">${e.name}(${e.employee_no})</option>`).join('');
+}
+async function submitManualAttendance(){
+  const employee_id = document.getElementById('manualEmp').value;
+  const work_date = document.getElementById('manualDate').value;
+  const check_in = document.getElementById('manualCheckIn').value || null;
+  const check_out = document.getElementById('manualCheckOut').value || null;
+  const status = document.getElementById('manualStatus').value;
+  const note = document.getElementById('manualNote').value.trim() || null;
+  const msgEl = document.getElementById('manualMsg');
+  if (!employee_id || !work_date){ msgEl.innerHTML = '<span class="msg bad">請選擇員工與日期</span>'; return; }
+  const { error } = await sb.from('attendance').upsert({
+    employee_id, work_date, check_in, check_out, status, note,
+    source: 'manual', created_by: currentEmp.id
+  }, { onConflict: 'employee_id,work_date' });
+  msgEl.innerHTML = error ? `<span class="msg bad">儲存失敗:${error.message}</span>` : `<span class="msg ok">已儲存出勤紀錄。</span>`;
+  if (!error){
+    document.getElementById('manualCheckIn').value = '';
+    document.getElementById('manualCheckOut').value = '';
+    document.getElementById('manualNote').value = '';
+  }
+}
+
+/* ---------------- 補打卡申請審核(主管) ---------------- */
+let correctionsCache = [];
+async function loadPendingCorrections(){
+  const { data } = await sb.from('clock_correction_requests')
+    .select('*, employees!clock_correction_requests_employee_id_fkey(name)')
+    .order('created_at',{ascending:false});
+  correctionsCache = data || [];
+  const body = document.getElementById('pendingCorrectionBody');
+  if (!body) return;
+  body.innerHTML = '';
+  correctionsCache.forEach(r=>{
+    const st = r.status==='approved' ? '<span class="badge badge-ok">已核准</span>' :
+               r.status==='rejected' ? '<span class="badge badge-bad">已駁回</span>' :
+               '<span class="badge badge-pending">審核中</span>';
+    const actions = r.status==='pending'
+      ? `<button class="btn-gold" style="padding:5px 10px; font-size:12px;" onclick="reviewCorrection('${r.id}','approved')">核准</button>
+         <button class="btn-outline" style="padding:5px 10px; font-size:12px;" onclick="reviewCorrection('${r.id}','rejected')">駁回</button>`
+      : '';
+    body.innerHTML += `<tr><td>${r.employees?.name||'-'}</td><td>${r.work_date}</td><td>${r.check_in||'-'}</td><td>${r.check_out||'-'}</td><td>${r.reason||''}</td><td>${st}</td><td>${actions}</td></tr>`;
+  });
+  document.getElementById('pendingCorrectionEmpty').classList.toggle('hidden', correctionsCache.length>0);
+}
+async function reviewCorrection(id, status){
+  const record = correctionsCache.find(r=>r.id===id);
+  await sb.from('clock_correction_requests').update({ status, reviewed_by: currentEmp.id, reviewed_at: new Date().toISOString() }).eq('id', id);
+  if (status==='approved' && record){
+    const { data: existing } = await sb.from('attendance').select('*')
+      .eq('employee_id', record.employee_id).eq('work_date', record.work_date).maybeSingle();
+    await sb.from('attendance').upsert({
+      employee_id: record.employee_id, work_date: record.work_date,
+      check_in: record.check_in || (existing ? existing.check_in : null),
+      check_out: record.check_out || (existing ? existing.check_out : null),
+      status: existing ? existing.status : '正常',
+      note: existing ? existing.note : `補打卡核准:${record.reason||''}`,
+      source: 'correction', created_by: currentEmp.id
+    }, { onConflict: 'employee_id,work_date' });
+  }
+  loadPendingCorrections();
+}
+
+/* ---------------- 團隊請假總覽(主管) ---------------- */
+async function loadTeamLeaveOverview(){
+  const today = todayStr();
+  const weekLater = fmtDate(new Date(Date.now() + 7*86400000));
+  const { data } = await sb.from('leave_requests')
+    .select('*, employees!leave_requests_employee_id_fkey(name)')
+    .in('status', ['pending','approved'])
+    .lte('start_date', weekLater).gte('end_date', today)
+    .order('start_date');
+  const body = document.getElementById('teamLeaveBody');
+  if (!body) return;
+  body.innerHTML = '';
+  (data||[]).forEach(r=>{
+    const st = r.status==='approved' ? '<span class="badge badge-ok">已核准</span>' : '<span class="badge badge-pending">審核中</span>';
+    body.innerHTML += `<tr><td>${r.employees?.name||'-'}</td><td>${r.leave_type}</td><td>${r.start_date} ~ ${r.end_date}</td><td>${st}</td></tr>`;
+  });
+  document.getElementById('teamLeaveEmpty').classList.toggle('hidden', (data||[]).length>0);
 }
 
 /* ---------------- 部門管理 ---------------- */
@@ -884,6 +1132,75 @@ async function toggleShift(employeeId, dateStr, isChecked){
     { onConflict: 'employee_id,work_date' }
   );
   loadScheduleForDate();
+}
+
+/* ---------------- 行事曆(全員可見) ---------------- */
+let calendarViewDate = new Date();
+function changeCalendarMonth(delta){
+  calendarViewDate.setMonth(calendarViewDate.getMonth() + delta);
+  loadCalendarTab();
+}
+async function loadCalendarTab(){
+  const year = calendarViewDate.getFullYear();
+  const month = calendarViewDate.getMonth();
+  document.getElementById('calendarMonthLabel').textContent = `${year} 年 ${month+1} 月`;
+
+  const firstOfMonth = new Date(year, month, 1);
+  const gridStart = mondayOf(firstOfMonth);
+  const gridEnd = new Date(gridStart); gridEnd.setDate(gridEnd.getDate()+41);
+  const startStr = fmtDate(gridStart), endStr = fmtDate(gridEnd);
+
+  const { data: leaves } = await sb.from('leave_requests')
+    .select('*, employees!leave_requests_employee_id_fkey(name)')
+    .eq('status','approved').lte('start_date', endStr).gte('end_date', startStr);
+  const { data: offs } = await sb.from('schedules')
+    .select('*, employees(name)')
+    .eq('shift_status','休假').gte('work_date', startStr).lte('work_date', endStr);
+
+  const dayLeaves = {}, dayOffs = {};
+  (leaves||[]).forEach(r=>{
+    let d = new Date(r.start_date + 'T00:00:00');
+    const end = new Date(r.end_date + 'T00:00:00');
+    while (d <= end){
+      const key = fmtDate(d);
+      (dayLeaves[key] = dayLeaves[key]||[]).push({ name: r.employees?.name||'-', type: r.leave_type });
+      d.setDate(d.getDate()+1);
+    }
+  });
+  (offs||[]).forEach(r=>{
+    (dayOffs[r.work_date] = dayOffs[r.work_date]||[]).push(r.employees?.name||'-');
+  });
+
+  const todayKey = todayStr();
+  const heads = ['一','二','三','四','五','六','日'].map(d=>`<div class="cal-head">${d}</div>`).join('');
+  const cells = [];
+  let cursor = new Date(gridStart);
+  for (let i=0;i<42;i++){
+    const key = fmtDate(cursor);
+    const inMonth = cursor.getMonth()===month;
+    const tags = (dayLeaves[key]||[]).map(l=>`<span class="cal-tag">請 ${l.name}(${l.type})</span>`).join('')
+               + (dayOffs[key]||[]).map(n=>`<span class="cal-tag off">休 ${n}</span>`).join('');
+    cells.push(`<div class="cal-cell ${inMonth?'':'other-month'} ${key===todayKey?'today':''}"><div class="cal-date">${cursor.getDate()}</div>${tags}</div>`);
+    cursor.setDate(cursor.getDate()+1);
+  }
+  document.getElementById('calendarGrid').innerHTML = `<div class="cal-grid">${heads}${cells.join('')}</div>`;
+
+  const monday = mondayOf(new Date());
+  const sunday = new Date(monday); sunday.setDate(sunday.getDate()+6);
+  const wStart = fmtDate(monday), wEnd = fmtDate(sunday);
+  const rows = [];
+  (leaves||[]).forEach(r=>{
+    if (r.end_date >= wStart && r.start_date <= wEnd){
+      rows.push(`<tr><td>${r.employees?.name||'-'}</td><td>請假(${r.leave_type})</td><td>${r.start_date} ~ ${r.end_date}</td></tr>`);
+    }
+  });
+  (offs||[]).forEach(r=>{
+    if (r.work_date >= wStart && r.work_date <= wEnd){
+      rows.push(`<tr><td>${r.employees?.name||'-'}</td><td>排休</td><td>${r.work_date}</td></tr>`);
+    }
+  });
+  document.getElementById('calWeekBody').innerHTML = rows.join('');
+  document.getElementById('calWeekEmpty').classList.toggle('hidden', rows.length>0);
 }
 
 /* ---------------- 報表 ---------------- */
