@@ -235,14 +235,21 @@
             </select>
           </div>
           <div>
-            <label>天數</label>
+            <label>申請單位</label>
+            <select id="leaveUnit" onchange="onLeaveUnitChange()">
+              <option value="day">天數</option>
+              <option value="hour">時數</option>
+            </select>
+          </div>
+          <div>
+            <label id="leaveAmountLabel">天數</label>
             <input id="leaveDays" type="number" min="0.5" step="0.5" placeholder="例如 1">
           </div>
           <div>
             <label>起始日期</label>
             <input id="leaveStart" type="date">
           </div>
-          <div>
+          <div id="leaveEndWrap">
             <label>結束日期</label>
             <input id="leaveEnd" type="date">
           </div>
@@ -254,7 +261,7 @@
       </div>
       <div class="card">
         <h2>我的請假紀錄</h2>
-        <table><thead><tr><th>假別</th><th>期間</th><th>天數</th><th>狀態</th></tr></thead>
+        <table><thead><tr><th>假別</th><th>期間</th><th>天數/時數</th><th>狀態</th></tr></thead>
         <tbody id="myLeaveBody"></tbody></table>
         <div class="empty hidden" id="myLeaveEmpty">尚無請假紀錄。</div>
       </div>
@@ -324,7 +331,7 @@
 
     <!-- 管理(admin only) -->
     <section id="tab-admin" class="hidden">
-      <div class="card">
+      <div class="card" id="superAdminNewEmpCard">
         <h2>新增員工</h2>
         <div class="form-row">
           <div><label>員工編號(登入用,須唯一)</label><input id="newEmpNo" type="text" placeholder="例如 A0123"></div>
@@ -333,7 +340,11 @@
           <div><label>到職日</label><input id="newEmpHire" type="date"></div>
           <div><label>部門</label><select id="newEmpDept"><option value="">未分類</option></select></div>
           <div><label>角色</label>
-            <select id="newEmpRole"><option value="employee">一般員工</option><option value="admin">主管/管理者</option></select>
+            <select id="newEmpRole">
+              <option value="employee">一般員工</option>
+              <option value="admin">一般主管</option>
+              <option value="super_admin">最高權限主管</option>
+            </select>
           </div>
         </div>
         <div class="actions"><button class="btn-primary" style="width:auto;" onclick="addEmployee()">新增</button></div>
@@ -365,6 +376,52 @@
       </div>
 
       <div class="card">
+        <h2>代員工申請請假 / 加班</h2>
+        <p class="hint">主管可直接為同仁登記請假或加班,送出後會直接標記為已核准,不需要再另外審核一次。</p>
+        <div class="form-row">
+          <div><label>員工</label><select id="proxyEmp"></select></div>
+          <div><label>類型</label>
+            <select id="proxyType" onchange="onProxyTypeChange()">
+              <option value="leave">請假</option>
+              <option value="overtime">加班</option>
+            </select>
+          </div>
+        </div>
+        <div id="proxyLeaveFields">
+          <div class="form-row">
+            <div><label>假別</label>
+              <select id="proxyLeaveType">
+                <option value="特休">特休</option>
+                <option value="事假">事假</option>
+                <option value="病假">病假</option>
+                <option value="公假">公假</option>
+                <option value="其他">其他</option>
+              </select>
+            </div>
+            <div><label>申請單位</label>
+              <select id="proxyLeaveUnit" onchange="onProxyLeaveUnitChange()">
+                <option value="day">天數</option>
+                <option value="hour">時數</option>
+              </select>
+            </div>
+            <div><label id="proxyLeaveAmountLabel">天數</label><input id="proxyLeaveAmount" type="number" min="0.5" step="0.5" placeholder="例如 1"></div>
+            <div><label>起始日期</label><input id="proxyLeaveStart" type="date"></div>
+            <div id="proxyLeaveEndWrap"><label>結束日期</label><input id="proxyLeaveEnd" type="date"></div>
+          </div>
+        </div>
+        <div id="proxyOvertimeFields" class="hidden">
+          <div class="form-row">
+            <div><label>加班日期</label><input id="proxyOtDate" type="date"></div>
+            <div><label>加班時數</label><input id="proxyOtHours" type="number" min="0.5" step="0.5" placeholder="例如 2"></div>
+          </div>
+        </div>
+        <label>事由(選填)</label>
+        <input id="proxyReason" type="text" placeholder="簡述原因">
+        <div class="actions"><button class="btn-primary" style="width:auto;" onclick="submitProxyRequest()">送出並直接核准</button></div>
+        <div class="msg" id="proxyMsg"></div>
+      </div>
+
+      <div class="card">
         <h2>補打卡申請審核</h2>
         <table><thead><tr><th>姓名</th><th>日期</th><th>申請上班</th><th>申請下班</th><th>原因</th><th>狀態</th><th>操作</th></tr></thead>
         <tbody id="pendingCorrectionBody"></tbody></table>
@@ -392,8 +449,23 @@
 
       <div class="card">
         <h2>員工特休總覽</h2>
-        <table><thead><tr><th>員工編號</th><th>姓名</th><th>部門</th><th>到職日</th><th>年資</th><th>特休總天數</th><th>已休</th><th>剩餘</th></tr></thead>
+        <p class="hint">點姓名可查看該員工今年各假別的使用明細與近期出勤紀錄。</p>
+        <table><thead><tr><th>員工編號</th><th>姓名</th><th>部門</th><th>角色</th><th>到職日</th><th>年資</th><th>特休總天數</th><th>已休</th><th>剩餘</th></tr></thead>
         <tbody id="empOverviewBody"></tbody></table>
+      </div>
+
+      <div class="card hidden" id="empDetailCard">
+        <div class="actions" style="justify-content:space-between; margin-top:0;">
+          <h2 id="empDetailName" style="margin:0;">員工差勤明細</h2>
+          <button class="btn-outline" onclick="closeEmpDetail()">關閉 ✕</button>
+        </div>
+        <div class="grid3" id="empDetailStats" style="margin-top:14px;"></div>
+        <h3 style="margin-top:18px; font-size:14px; color:var(--navy);">今年請假明細</h3>
+        <table><thead><tr><th>日期</th><th>假別</th><th>天數/時數</th><th>狀態</th></tr></thead>
+        <tbody id="empDetailLeaveBody"></tbody></table>
+        <h3 style="margin-top:18px; font-size:14px; color:var(--navy);">近 30 天出勤</h3>
+        <table><thead><tr><th>日期</th><th>上班</th><th>下班</th><th>狀態</th></tr></thead>
+        <tbody id="empDetailAttBody"></tbody></table>
       </div>
 
       <div class="card">
@@ -554,11 +626,14 @@ async function afterLogin(user){
   currentEmp = emp;
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('appScreen').style.display = 'block';
-  document.getElementById('whoName').textContent = `${emp.name}・${emp.employee_no}(${emp.role==='admin'?'主管/管理者':'員工'})`;
-  const isAdmin = emp.role === 'admin';
+  const roleLabel = emp.role==='super_admin' ? '最高權限主管' : emp.role==='admin' ? '主管/管理者' : '員工';
+  document.getElementById('whoName').textContent = `${emp.name}・${emp.employee_no}(${roleLabel})`;
+  const isAdmin = emp.role === 'admin' || emp.role === 'super_admin';
+  const isSuperAdmin = emp.role === 'super_admin';
   document.getElementById('tabAdminBtn').classList.toggle('hidden', !isAdmin);
   document.getElementById('tabScheduleBtn').classList.toggle('hidden', !isAdmin);
   document.getElementById('tabReportsBtn').classList.toggle('hidden', !isAdmin);
+  document.getElementById('superAdminNewEmpCard').classList.toggle('hidden', !isSuperAdmin);
   document.getElementById('todayLabel').textContent = '今天是 ' + new Date().toLocaleDateString('zh-TW');
   document.getElementById('leaveStart').valueAsDate = new Date();
   document.getElementById('leaveEnd').valueAsDate = new Date();
@@ -566,6 +641,9 @@ async function afterLogin(user){
   document.getElementById('corDate').valueAsDate = new Date();
   if (document.getElementById('manualDate')) document.getElementById('manualDate').valueAsDate = new Date();
   if (document.getElementById('teamAttDate')) document.getElementById('teamAttDate').valueAsDate = new Date();
+  if (document.getElementById('proxyLeaveStart')) document.getElementById('proxyLeaveStart').valueAsDate = new Date();
+  if (document.getElementById('proxyLeaveEnd')) document.getElementById('proxyLeaveEnd').valueAsDate = new Date();
+  if (document.getElementById('proxyOtDate')) document.getElementById('proxyOtDate').valueAsDate = new Date();
   await loadDashboard();
 }
 
@@ -698,17 +776,39 @@ async function clockOut(){
   if (!error) loadDashboard();
 }
 
+function onLeaveUnitChange(){
+  const unit = document.getElementById('leaveUnit').value;
+  const label = document.getElementById('leaveAmountLabel');
+  const daysInput = document.getElementById('leaveDays');
+  const endWrap = document.getElementById('leaveEndWrap');
+  if (unit === 'hour'){
+    label.textContent = '時數(以 8 小時為 1 天計算)';
+    daysInput.max = '8'; daysInput.placeholder = '例如 4';
+    endWrap.style.display = 'none';
+  } else {
+    label.textContent = '天數';
+    daysInput.removeAttribute('max'); daysInput.placeholder = '例如 1';
+    endWrap.style.display = '';
+  }
+}
+function leaveAmountText(r){
+  return r.unit === 'hour' ? `${r.hours} 小時` : `${r.days} 天`;
+}
 /* ---------------- 請假申請(須審核) ---------------- */
 async function submitLeave(){
   const leave_type = document.getElementById('leaveType').value;
-  const days = parseFloat(document.getElementById('leaveDays').value);
+  const unit = document.getElementById('leaveUnit').value;
+  const amount = parseFloat(document.getElementById('leaveDays').value);
   const start_date = document.getElementById('leaveStart').value;
-  const end_date = document.getElementById('leaveEnd').value;
+  let end_date = document.getElementById('leaveEnd').value;
   const reason = document.getElementById('leaveReason').value.trim();
   const msgEl = document.getElementById('leaveMsg');
-  if (!days || !start_date || !end_date){ msgEl.innerHTML = '<span class="msg bad">請完整填寫天數與日期</span>'; return; }
+  if (!amount || !start_date || (unit==='day' && !end_date)){ msgEl.innerHTML = '<span class="msg bad">請完整填寫天數/時數與日期</span>'; return; }
+  let days, hours;
+  if (unit === 'hour'){ hours = amount; days = Math.round((amount/8)*100)/100; end_date = start_date; }
+  else { days = amount; hours = null; }
   const { error } = await sb.from('leave_requests').insert({
-    employee_id: currentEmp.id, leave_type, days, start_date, end_date, reason, status:'pending'
+    employee_id: currentEmp.id, leave_type, unit, days, hours, start_date, end_date, reason, status:'pending'
   });
   msgEl.innerHTML = error ? `<span class="msg bad">送出失敗:${error.message}</span>` : `<span class="msg ok">已送出,等待主管審核。</span>`;
   if (!error) loadMyLeave();
@@ -721,7 +821,7 @@ async function loadMyLeave(){
     const st = r.status==='approved' ? '<span class="badge badge-ok">已核准</span>' :
                r.status==='rejected' ? '<span class="badge badge-bad">已駁回</span>' :
                '<span class="badge badge-pending">審核中</span>';
-    body.innerHTML += `<tr><td>${r.leave_type}</td><td>${r.start_date} ~ ${r.end_date}</td><td>${r.days}</td><td>${st}</td></tr>`;
+    body.innerHTML += `<tr><td>${r.leave_type}</td><td>${r.start_date} ~ ${r.end_date}</td><td>${leaveAmountText(r)}</td><td>${st}</td></tr>`;
   });
   document.getElementById('myLeaveEmpty').classList.toggle('hidden', (data||[]).length>0);
 }
@@ -893,7 +993,15 @@ async function loadAdmin(){
     const { data: usedRows } = await sb.from('leave_requests').select('days')
       .eq('employee_id', e.id).eq('leave_type','特休').eq('status','approved');
     const used = (usedRows||[]).reduce((s,r)=>s+Number(r.days),0);
-    overviewBody.innerHTML += `<tr><td>${e.employee_no}</td><td>${e.name}</td><td><select style="padding:4px 6px; font-size:12px;" onchange="updateEmployeeDept('${e.id}', this.value)">${deptOptionsForRow(e.department_id)}</select></td><td>${e.hire_date}</td><td>${tenureLabel(e.hire_date)}</td><td>${total}</td><td>${used}</td><td>${Math.max(total-used,0)}</td></tr>`;
+    const roleLabel = e.role==='super_admin' ? '最高權限主管' : e.role==='admin' ? '一般主管' : '一般員工';
+    const roleCell = currentEmp.role === 'super_admin'
+      ? `<select style="padding:4px 6px; font-size:12px;" onchange="updateEmployeeRole('${e.id}', this.value)">
+           <option value="employee" ${e.role==='employee'?'selected':''}>一般員工</option>
+           <option value="admin" ${e.role==='admin'?'selected':''}>一般主管</option>
+           <option value="super_admin" ${e.role==='super_admin'?'selected':''}>最高權限主管</option>
+         </select>`
+      : roleLabel;
+    overviewBody.innerHTML += `<tr><td>${e.employee_no}</td><td><a href="javascript:void(0)" onclick="openEmpDetail('${e.id}','${e.name.replace(/'/g,"\\'")}')" style="color:var(--navy); font-weight:600; text-decoration:underline;">${e.name}</a></td><td><select style="padding:4px 6px; font-size:12px;" onchange="updateEmployeeDept('${e.id}', this.value)">${deptOptionsForRow(e.department_id)}</select></td><td>${roleCell}</td><td>${e.hire_date}</td><td>${tenureLabel(e.hire_date)}</td><td>${total}</td><td>${used}</td><td>${Math.max(total-used,0)}</td></tr>`;
   }
 
   const { data: pending } = await sb.from('leave_requests').select('*, employees!leave_requests_employee_id_fkey(name)').order('created_at',{ascending:false});
@@ -907,7 +1015,7 @@ async function loadAdmin(){
       ? `<button class="btn-gold" style="padding:5px 10px; font-size:12px;" onclick="reviewLeave('${r.id}','approved')">核准</button>
          <button class="btn-outline" style="padding:5px 10px; font-size:12px;" onclick="reviewLeave('${r.id}','rejected')">駁回</button>`
       : '';
-    pbody.innerHTML += `<tr><td>${r.employees?.name||'-'}</td><td>${r.leave_type}</td><td>${r.start_date} ~ ${r.end_date}</td><td>${r.days}</td><td>${st}</td><td>${actions}</td></tr>`;
+    pbody.innerHTML += `<tr><td>${r.employees?.name||'-'}</td><td>${r.leave_type}</td><td>${r.start_date} ~ ${r.end_date}</td><td>${leaveAmountText(r)}</td><td>${st}</td><td>${actions}</td></tr>`;
   });
   document.getElementById('pendingLeaveEmpty').classList.toggle('hidden', (pending||[]).length>0);
 
@@ -944,10 +1052,12 @@ async function reviewOvertime(id, status){
 
 /* ---------------- 員工出勤補登(主管手動) ---------------- */
 async function populateManualEmpSelect(){
-  const sel = document.getElementById('manualEmp');
-  if (!sel) return;
   const { data } = await sb.from('employees').select('id,name,employee_no').order('name');
-  sel.innerHTML = (data||[]).map(e=>`<option value="${e.id}">${e.name}(${e.employee_no})</option>`).join('');
+  const optionsHtml = (data||[]).map(e=>`<option value="${e.id}">${e.name}(${e.employee_no})</option>`).join('');
+  const sel = document.getElementById('manualEmp');
+  if (sel) sel.innerHTML = optionsHtml;
+  const proxySel = document.getElementById('proxyEmp');
+  if (proxySel) proxySel.innerHTML = optionsHtml;
 }
 async function submitManualAttendance(){
   const employee_id = document.getElementById('manualEmp').value;
@@ -968,6 +1078,107 @@ async function submitManualAttendance(){
     document.getElementById('manualCheckOut').value = '';
     document.getElementById('manualNote').value = '';
   }
+}
+
+/* ---------------- 代員工申請請假 / 加班(主管) ---------------- */
+function onProxyTypeChange(){
+  const type = document.getElementById('proxyType').value;
+  document.getElementById('proxyLeaveFields').classList.toggle('hidden', type!=='leave');
+  document.getElementById('proxyOvertimeFields').classList.toggle('hidden', type!=='overtime');
+}
+function onProxyLeaveUnitChange(){
+  const unit = document.getElementById('proxyLeaveUnit').value;
+  const label = document.getElementById('proxyLeaveAmountLabel');
+  const endWrap = document.getElementById('proxyLeaveEndWrap');
+  if (unit === 'hour'){ label.textContent = '時數(以 8 小時為 1 天計算)'; endWrap.style.display = 'none'; }
+  else { label.textContent = '天數'; endWrap.style.display = ''; }
+}
+async function submitProxyRequest(){
+  const employee_id = document.getElementById('proxyEmp').value;
+  const type = document.getElementById('proxyType').value;
+  const reason = document.getElementById('proxyReason').value.trim();
+  const msgEl = document.getElementById('proxyMsg');
+  if (!employee_id){ msgEl.innerHTML = '<span class="msg bad">請選擇員工</span>'; return; }
+  let error;
+  if (type === 'leave'){
+    const leave_type = document.getElementById('proxyLeaveType').value;
+    const unit = document.getElementById('proxyLeaveUnit').value;
+    const amount = parseFloat(document.getElementById('proxyLeaveAmount').value);
+    const start_date = document.getElementById('proxyLeaveStart').value;
+    let end_date = document.getElementById('proxyLeaveEnd').value;
+    if (!amount || !start_date || (unit==='day' && !end_date)){ msgEl.innerHTML = '<span class="msg bad">請完整填寫請假資訊</span>'; return; }
+    let days, hours;
+    if (unit === 'hour'){ hours = amount; days = Math.round((amount/8)*100)/100; end_date = start_date; }
+    else { days = amount; hours = null; }
+    ({ error } = await sb.from('leave_requests').insert({
+      employee_id, leave_type, unit, days, hours, start_date, end_date, reason,
+      status: 'approved', submitted_by: currentEmp.id, reviewed_by: currentEmp.id, reviewed_at: new Date().toISOString()
+    }));
+  } else {
+    const work_date = document.getElementById('proxyOtDate').value;
+    const hours = parseFloat(document.getElementById('proxyOtHours').value);
+    if (!work_date || !hours){ msgEl.innerHTML = '<span class="msg bad">請完整填寫加班資訊</span>'; return; }
+    ({ error } = await sb.from('overtime_requests').insert({
+      employee_id, work_date, hours, reason,
+      status: 'approved', submitted_by: currentEmp.id, reviewed_by: currentEmp.id, reviewed_at: new Date().toISOString()
+    }));
+  }
+  msgEl.innerHTML = error ? `<span class="msg bad">送出失敗:${error.message}</span>` : `<span class="msg ok">已代員工登記,並直接標記為已核准。</span>`;
+  if (!error){
+    document.getElementById('proxyReason').value = '';
+    loadAdmin();
+  }
+}
+
+/* ---------------- 員工差勤明細(主管點姓名查看) ---------------- */
+async function openEmpDetail(empId, empName){
+  document.getElementById('empDetailCard').classList.remove('hidden');
+  document.getElementById('empDetailName').textContent = `${empName} 的差勤明細`;
+
+  const { data: empRow } = await sb.from('employees').select('*').eq('id', empId).single();
+  const year = new Date().getFullYear();
+  const yearStart = `${year}-01-01`, yearEnd = `${year}-12-31`;
+
+  const total = calcAnnualLeaveEntitlement(empRow.hire_date);
+  const { data: annualRows } = await sb.from('leave_requests').select('days')
+    .eq('employee_id', empId).eq('leave_type','特休').eq('status','approved');
+  const usedAnnual = (annualRows||[]).reduce((s,r)=>s+Number(r.days),0);
+
+  let statsHtml = `
+    <div class="stat"><div class="num">${total}</div><div class="label">特休總天數</div></div>
+    <div class="stat"><div class="num">${usedAnnual}</div><div class="label">特休已休</div></div>
+    <div class="stat"><div class="num">${Math.max(total-usedAnnual,0)}</div><div class="label">特休剩餘</div></div>
+  `;
+  for (const [type, quota] of Object.entries(ANNUAL_LEAVE_QUOTA)){
+    const { data: rows } = await sb.from('leave_requests').select('days')
+      .eq('employee_id', empId).eq('leave_type', type).eq('status','approved')
+      .gte('start_date', yearStart).lte('start_date', yearEnd);
+    const usedDays = (rows||[]).reduce((s,r)=>s+Number(r.days),0);
+    statsHtml += `<div class="stat"><div class="num">${Math.max(quota-usedDays,0)}</div><div class="label">${type}剩餘(上限${quota}天)</div></div>`;
+  }
+  document.getElementById('empDetailStats').innerHTML = statsHtml;
+
+  const { data: allLeaves } = await sb.from('leave_requests').select('*')
+    .eq('employee_id', empId).gte('start_date', yearStart).lte('start_date', yearEnd).order('start_date',{ascending:false});
+  document.getElementById('empDetailLeaveBody').innerHTML = (allLeaves||[]).map(r=>{
+    const st = r.status==='approved' ? '<span class="badge badge-ok">已核准</span>' :
+               r.status==='rejected' ? '<span class="badge badge-bad">已駁回</span>' :
+               '<span class="badge badge-pending">審核中</span>';
+    const dateCell = r.start_date===r.end_date ? r.start_date : `${r.start_date} ~ ${r.end_date}`;
+    return `<tr><td>${dateCell}</td><td>${r.leave_type}</td><td>${leaveAmountText(r)}</td><td>${st}</td></tr>`;
+  }).join('') || '<tr><td colspan="4" style="color:var(--muted);">今年尚無請假紀錄</td></tr>';
+
+  const thirtyAgo = fmtDate(new Date(Date.now()-30*86400000));
+  const { data: attRows } = await sb.from('attendance').select('*')
+    .eq('employee_id', empId).gte('work_date', thirtyAgo).order('work_date',{ascending:false});
+  document.getElementById('empDetailAttBody').innerHTML = (attRows||[]).map(r=>
+    `<tr><td>${r.work_date}</td><td>${r.check_in||'-'}</td><td>${r.check_out||'-'}</td><td>${statusBadge(r.status)}</td></tr>`
+  ).join('') || '<tr><td colspan="4" style="color:var(--muted);">近 30 天無出勤紀錄</td></tr>';
+
+  document.getElementById('empDetailCard').scrollIntoView({behavior:'smooth', block:'start'});
+}
+function closeEmpDetail(){
+  document.getElementById('empDetailCard').classList.add('hidden');
 }
 
 /* ---------------- 補打卡申請審核(主管) ---------------- */
@@ -1025,7 +1236,7 @@ async function loadTeamAttendance(){
     const r = attMap[e.id];
     const src = !r ? '-' : r.source==='manual' ? '手動' : r.source==='correction' ? '補打卡核准' : '本人';
     const statusCell = r ? statusBadge(r.status) : '<span class="badge badge-bad">未打卡</span>';
-    return `<tr><td>${e.name}</td><td>${e.departments?.name||'-'}</td><td>${r?.check_in||'-'}</td><td>${r?.check_out||'-'}</td><td>${statusCell}</td><td>${src}</td></tr>`;
+    return `<tr><td><a href="javascript:void(0)" onclick="openEmpDetail('${e.id}','${e.name.replace(/'/g,"\\'")}')" style="color:var(--navy); font-weight:600; text-decoration:underline;">${e.name}</a></td><td>${e.departments?.name||'-'}</td><td>${r?.check_in||'-'}</td><td>${r?.check_out||'-'}</td><td>${statusCell}</td><td>${src}</td></tr>`;
   }).join('');
 }
 function changeTeamAttDate(delta){
@@ -1086,6 +1297,11 @@ async function addDepartment(){
 }
 async function updateEmployeeDept(empId, deptId){
   await sb.from('employees').update({ department_id: deptId || null }).eq('id', empId);
+}
+async function updateEmployeeRole(empId, role){
+  const { error } = await sb.from('employees').update({ role }).eq('id', empId);
+  if (error) alert('修改角色失敗:' + error.message);
+  loadAdmin();
 }
 
 /* ---------------- 最低到班人數設定 ---------------- */
@@ -1300,4 +1516,3 @@ function exportOvertimeCSV(){
 </script>
 </body>
 </html>
-
