@@ -212,7 +212,7 @@
       </div>
       <div class="card">
         <h2>我的補打卡申請紀錄</h2>
-        <table><thead><tr><th>日期</th><th>上班</th><th>下班</th><th>原因</th><th>狀態</th></tr></thead>
+        <table><thead><tr><th>日期</th><th>上班</th><th>下班</th><th>原因</th><th>狀態</th><th>審核人/意見</th></tr></thead>
         <tbody id="myCorrectionBody"></tbody></table>
         <div class="empty hidden" id="myCorrectionEmpty">尚無補打卡申請紀錄。</div>
       </div>
@@ -261,7 +261,7 @@
       </div>
       <div class="card">
         <h2>我的請假紀錄</h2>
-        <table><thead><tr><th>假別</th><th>期間</th><th>天數/時數</th><th>狀態</th></tr></thead>
+        <table><thead><tr><th>假別</th><th>期間</th><th>天數/時數</th><th>狀態</th><th>審核人/意見</th></tr></thead>
         <tbody id="myLeaveBody"></tbody></table>
         <div class="empty hidden" id="myLeaveEmpty">尚無請假紀錄。</div>
       </div>
@@ -271,7 +271,7 @@
     <section id="tab-dayoff" class="hidden">
       <div class="card">
         <h2>排休申請</h2>
-        <p class="hint">原則上每週 6 個上班日(週一至週六)可以自行挑一天休息,不需要主管審核,送出後立即生效。</p>
+        <p class="hint">原則上每週 6 個上班日(週一至週六)可以自行挑一天休息,不需要主管事先審核,送出後立即生效;但主管仍可事後駁回並註明原因,遇到禁止排休日也無法選取。</p>
         <div class="form-row">
           <div>
             <label>選擇週別</label>
@@ -303,7 +303,7 @@
       </div>
       <div class="card">
         <h2>我的加班紀錄</h2>
-        <table><thead><tr><th>日期</th><th>時數</th><th>狀態</th></tr></thead>
+        <table><thead><tr><th>日期</th><th>時數</th><th>狀態</th><th>審核人/意見</th></tr></thead>
         <tbody id="myOvertimeBody"></tbody></table>
         <div class="empty hidden" id="myOvertimeEmpty">尚無加班紀錄。</div>
       </div>
@@ -423,7 +423,7 @@
 
       <div class="card">
         <h2>補打卡申請審核</h2>
-        <table><thead><tr><th>姓名</th><th>日期</th><th>申請上班</th><th>申請下班</th><th>原因</th><th>狀態</th><th>操作</th></tr></thead>
+        <table><thead><tr><th>姓名</th><th>日期</th><th>申請上班</th><th>申請下班</th><th>原因</th><th>狀態</th><th>審核人/意見</th><th>操作</th></tr></thead>
         <tbody id="pendingCorrectionBody"></tbody></table>
         <div class="empty hidden" id="pendingCorrectionEmpty">目前沒有待審核的補打卡申請。</div>
       </div>
@@ -470,14 +470,14 @@
 
       <div class="card">
         <h2>請假審核</h2>
-        <table><thead><tr><th>姓名</th><th>假別</th><th>期間</th><th>天數</th><th>狀態</th><th>操作</th></tr></thead>
+        <table><thead><tr><th>姓名</th><th>假別</th><th>期間</th><th>天數</th><th>狀態</th><th>審核人/意見</th><th>操作</th></tr></thead>
         <tbody id="pendingLeaveBody"></tbody></table>
         <div class="empty hidden" id="pendingLeaveEmpty">目前沒有待審核的請假申請。</div>
       </div>
 
       <div class="card">
         <h2>加班審核</h2>
-        <table><thead><tr><th>姓名</th><th>日期</th><th>時數</th><th>事由</th><th>狀態</th><th>操作</th></tr></thead>
+        <table><thead><tr><th>姓名</th><th>日期</th><th>時數</th><th>事由</th><th>狀態</th><th>審核人/意見</th><th>操作</th></tr></thead>
         <tbody id="pendingOvertimeBody"></tbody></table>
         <div class="empty hidden" id="pendingOvertimeEmpty">目前沒有待審核的加班申請。</div>
       </div>
@@ -525,6 +525,27 @@
         </div>
         <p class="hint">預設每位員工每天都算「上班」,取消勾選代表當天排休。人數不足最低要求時會以紅色標示。員工自行排休(來自「排休」頁籤)也會顯示在這裡。</p>
         <div id="scheduleByDept" style="margin-top:14px;"></div>
+      </div>
+
+      <div class="card">
+        <h2>員工排休管理</h2>
+        <p class="hint">員工自行排休原則上立即生效,主管仍可事後駁回並註明原因;駁回後該天不再視為休假。顯示範圍為今天起 60 天內。</p>
+        <table><thead><tr><th>姓名</th><th>日期</th><th>狀態</th><th>操作</th></tr></thead>
+        <tbody id="dayoffMgmtBody"></tbody></table>
+        <div class="empty hidden" id="dayoffMgmtEmpty">近期沒有人排休。</div>
+      </div>
+
+      <div class="card">
+        <h2>禁止排休日設定</h2>
+        <p class="hint">設定的日期,員工在「排休」頁籤將無法選取。</p>
+        <div class="form-row">
+          <div><label>日期</label><input id="blackoutDate" type="date"></div>
+          <div><label>原因(選填)</label><input id="blackoutReason" type="text" placeholder="例如 業務旺季"></div>
+        </div>
+        <div class="actions"><button class="btn-primary" style="width:auto;" onclick="addBlackoutDate()">新增禁止排休日</button></div>
+        <div class="msg" id="blackoutMsg"></div>
+        <table style="margin-top:14px;"><thead><tr><th>日期</th><th>原因</th><th>操作</th></tr></thead>
+        <tbody id="blackoutListBody"></tbody></table>
       </div>
     </section>
 
@@ -794,6 +815,11 @@ function onLeaveUnitChange(){
 function leaveAmountText(r){
   return r.unit === 'hour' ? `${r.hours} 小時` : `${r.days} 天`;
 }
+function reviewInfoText(r, reviewerObj){
+  if (r.status === 'pending') return '-';
+  const name = reviewerObj?.name || '-';
+  return r.review_note ? `${name}:${r.review_note}` : name;
+}
 /* ---------------- 請假申請(須審核) ---------------- */
 async function submitLeave(){
   const leave_type = document.getElementById('leaveType').value;
@@ -814,14 +840,17 @@ async function submitLeave(){
   if (!error) loadMyLeave();
 }
 async function loadMyLeave(){
-  const { data } = await sb.from('leave_requests').select('*').eq('employee_id', currentEmp.id).order('created_at',{ascending:false});
+  const { data } = await sb.from('leave_requests')
+    .select('*, reviewer:employees!leave_requests_reviewed_by_fkey(name), submitter:employees!leave_requests_submitted_by_fkey(name)')
+    .eq('employee_id', currentEmp.id).order('created_at',{ascending:false});
   const body = document.getElementById('myLeaveBody');
   body.innerHTML = '';
   (data||[]).forEach(r=>{
     const st = r.status==='approved' ? '<span class="badge badge-ok">已核准</span>' :
                r.status==='rejected' ? '<span class="badge badge-bad">已駁回</span>' :
                '<span class="badge badge-pending">審核中</span>';
-    body.innerHTML += `<tr><td>${r.leave_type}</td><td>${r.start_date} ~ ${r.end_date}</td><td>${leaveAmountText(r)}</td><td>${st}</td></tr>`;
+    const typeCell = r.leave_type + (r.submitter ? `<div class="source-tag">由 ${r.submitter.name} 代登記</div>` : '');
+    body.innerHTML += `<tr><td>${typeCell}</td><td>${r.start_date} ~ ${r.end_date}</td><td>${leaveAmountText(r)}</td><td>${st}</td><td>${reviewInfoText(r, r.reviewer)}</td></tr>`;
   });
   document.getElementById('myLeaveEmpty').classList.toggle('hidden', (data||[]).length>0);
 }
@@ -860,10 +889,20 @@ async function renderDayoffForWeek(offset){
   monday.setDate(monday.getDate() + offset*7);
   const days = weekDates(monday);
   const labels = ['一','二','三','四','五','六'];
-  const sel = document.getElementById('dayoffDateSel');
-  sel.innerHTML = days.map((d,i)=>`<option value="${fmtDate(d)}">星期${labels[i]}(${fmtDate(d)})</option>`).join('');
-
   const startStr = fmtDate(days[0]), endStr = fmtDate(days[5]);
+
+  const { data: blackouts } = await sb.from('dayoff_blackout_dates').select('*')
+    .gte('work_date', startStr).lte('work_date', endStr);
+  const blackoutMap = {};
+  (blackouts||[]).forEach(b=>{ blackoutMap[b.work_date] = b.reason || '主管已封鎖此日'; });
+
+  const sel = document.getElementById('dayoffDateSel');
+  sel.innerHTML = days.map((d,i)=>{
+    const ds = fmtDate(d);
+    const blocked = blackoutMap[ds];
+    return `<option value="${ds}" ${blocked?'disabled':''}>星期${labels[i]}(${ds})${blocked?' — 禁止排休':''}</option>`;
+  }).join('');
+
   const { data } = await sb.from('schedules').select('*')
     .eq('employee_id', currentEmp.id).eq('source','self').eq('shift_status','休假')
     .gte('work_date', startStr).lte('work_date', endStr);
@@ -871,10 +910,14 @@ async function renderDayoffForWeek(offset){
   const infoEl = document.getElementById('dayoffCurrentInfo');
   const btnEl = document.getElementById('dayoffApplyBtn');
   if (existing){
-    infoEl.innerHTML = `這週已排休:<strong>${existing.work_date}</strong>　<button class="btn-outline" style="padding:4px 10px; font-size:12px;" onclick="cancelDayoff('${existing.id}')">取消排休</button>`;
-    btnEl.disabled = true;
+    const st = existing.status==='rejected'
+      ? `<span class="badge badge-bad">已駁回</span>${existing.reject_reason?`(原因:${existing.reject_reason})`:''}`
+      : '<span class="badge badge-ok">已核准</span>';
+    infoEl.innerHTML = `這週排休:<strong>${existing.work_date}</strong> ${st}　<button class="btn-outline" style="padding:4px 10px; font-size:12px;" onclick="cancelDayoff('${existing.id}')">取消排休</button>`;
+    btnEl.disabled = existing.status !== 'rejected';
   } else {
-    infoEl.textContent = '這週尚未排休。';
+    const blackoutNote = Object.keys(blackoutMap).length ? `本週有 ${Object.keys(blackoutMap).length} 天被主管設為禁止排休日。` : '';
+    infoEl.textContent = '這週尚未排休。' + blackoutNote;
     btnEl.disabled = false;
   }
 }
@@ -882,9 +925,9 @@ async function applyDayoff(){
   const dateStr = document.getElementById('dayoffDateSel').value;
   const msgEl = document.getElementById('dayoffMsg');
   const { error } = await sb.from('schedules').insert({
-    employee_id: currentEmp.id, work_date: dateStr, shift_status:'休假', source:'self'
+    employee_id: currentEmp.id, work_date: dateStr, shift_status:'休假', source:'self', status:'approved'
   });
-  msgEl.innerHTML = error ? `<span class="msg bad">申請失敗:${error.message}(若該日已被主管排班為上班,需請主管協助調整)</span>` : `<span class="msg ok">已排休 ${dateStr}</span>`;
+  msgEl.innerHTML = error ? `<span class="msg bad">申請失敗:${error.message}</span>` : `<span class="msg ok">已排休 ${dateStr}</span>`;
   if (!error){
     const offset = parseInt(document.getElementById('dayoffWeekSel').value);
     renderDayoffForWeek(offset);
@@ -913,14 +956,17 @@ async function submitOvertime(){
   }
 }
 async function loadMyOvertime(){
-  const { data } = await sb.from('overtime_requests').select('*').eq('employee_id', currentEmp.id).order('work_date',{ascending:false});
+  const { data } = await sb.from('overtime_requests')
+    .select('*, reviewer:employees!overtime_requests_reviewed_by_fkey(name), submitter:employees!overtime_requests_submitted_by_fkey(name)')
+    .eq('employee_id', currentEmp.id).order('work_date',{ascending:false});
   const body = document.getElementById('myOvertimeBody');
   body.innerHTML = '';
   (data||[]).forEach(r=>{
     const st = r.status==='approved' ? '<span class="badge badge-ok">已核准</span>' :
                r.status==='rejected' ? '<span class="badge badge-bad">已駁回</span>' :
                '<span class="badge badge-pending">審核中</span>';
-    body.innerHTML += `<tr><td>${r.work_date}</td><td>${r.hours}</td><td>${st}</td></tr>`;
+    const dateCell = r.work_date + (r.submitter ? `<div class="source-tag">由 ${r.submitter.name} 代登記</div>` : '');
+    body.innerHTML += `<tr><td>${dateCell}</td><td>${r.hours}</td><td>${st}</td><td>${reviewInfoText(r, r.reviewer)}</td></tr>`;
   });
   document.getElementById('myOvertimeEmpty').classList.toggle('hidden', (data||[]).length>0);
 }
@@ -946,7 +992,8 @@ async function submitCorrection(){
   }
 }
 async function loadMyCorrections(){
-  const { data } = await sb.from('clock_correction_requests').select('*')
+  const { data } = await sb.from('clock_correction_requests')
+    .select('*, reviewer:employees!clock_correction_requests_reviewed_by_fkey(name)')
     .eq('employee_id', currentEmp.id).order('work_date',{ascending:false});
   const body = document.getElementById('myCorrectionBody');
   if (!body) return;
@@ -955,7 +1002,7 @@ async function loadMyCorrections(){
     const st = r.status==='approved' ? '<span class="badge badge-ok">已核准</span>' :
                r.status==='rejected' ? '<span class="badge badge-bad">已駁回</span>' :
                '<span class="badge badge-pending">審核中</span>';
-    body.innerHTML += `<tr><td>${r.work_date}</td><td>${r.check_in||'-'}</td><td>${r.check_out||'-'}</td><td>${r.reason||''}</td><td>${st}</td></tr>`;
+    body.innerHTML += `<tr><td>${r.work_date}</td><td>${r.check_in||'-'}</td><td>${r.check_out||'-'}</td><td>${r.reason||''}</td><td>${st}</td><td>${reviewInfoText(r, r.reviewer)}</td></tr>`;
   });
   document.getElementById('myCorrectionEmpty').classList.toggle('hidden', (data||[]).length>0);
 }
@@ -1004,18 +1051,22 @@ async function loadAdmin(){
     overviewBody.innerHTML += `<tr><td>${e.employee_no}</td><td><a href="javascript:void(0)" onclick="openEmpDetail('${e.id}','${e.name.replace(/'/g,"\\'")}')" style="color:var(--navy); font-weight:600; text-decoration:underline;">${e.name}</a></td><td><select style="padding:4px 6px; font-size:12px;" onchange="updateEmployeeDept('${e.id}', this.value)">${deptOptionsForRow(e.department_id)}</select></td><td>${roleCell}</td><td>${e.hire_date}</td><td>${tenureLabel(e.hire_date)}</td><td>${total}</td><td>${used}</td><td>${Math.max(total-used,0)}</td></tr>`;
   }
 
-  const { data: pending } = await sb.from('leave_requests').select('*, employees!leave_requests_employee_id_fkey(name)').order('created_at',{ascending:false});
+  const { data: pending } = await sb.from('leave_requests')
+    .select('*, employees!leave_requests_employee_id_fkey(name), reviewer:employees!leave_requests_reviewed_by_fkey(name), submitter:employees!leave_requests_submitted_by_fkey(name)')
+    .order('created_at',{ascending:false});
   const pbody = document.getElementById('pendingLeaveBody');
   pbody.innerHTML = '';
   (pending||[]).forEach(r=>{
     const st = r.status==='approved' ? '<span class="badge badge-ok">已核准</span>' :
                r.status==='rejected' ? '<span class="badge badge-bad">已駁回</span>' :
                '<span class="badge badge-pending">審核中</span>';
+    const nameCell = (r.employees?.name||'-') + (r.submitter ? `<div class="source-tag">由 ${r.submitter.name} 代登記</div>` : '');
     const actions = r.status==='pending'
-      ? `<button class="btn-gold" style="padding:5px 10px; font-size:12px;" onclick="reviewLeave('${r.id}','approved')">核准</button>
+      ? `<input id="note-leave-${r.id}" type="text" placeholder="審核意見(選填)" style="width:130px; padding:4px 6px; font-size:12px; margin-bottom:4px; display:block;">
+         <button class="btn-gold" style="padding:5px 10px; font-size:12px;" onclick="reviewLeave('${r.id}','approved')">核准</button>
          <button class="btn-outline" style="padding:5px 10px; font-size:12px;" onclick="reviewLeave('${r.id}','rejected')">駁回</button>`
       : '';
-    pbody.innerHTML += `<tr><td>${r.employees?.name||'-'}</td><td>${r.leave_type}</td><td>${r.start_date} ~ ${r.end_date}</td><td>${leaveAmountText(r)}</td><td>${st}</td><td>${actions}</td></tr>`;
+    pbody.innerHTML += `<tr><td>${nameCell}</td><td>${r.leave_type}</td><td>${r.start_date} ~ ${r.end_date}</td><td>${leaveAmountText(r)}</td><td>${st}</td><td>${reviewInfoText(r, r.reviewer)}</td><td>${actions}</td></tr>`;
   });
   document.getElementById('pendingLeaveEmpty').classList.toggle('hidden', (pending||[]).length>0);
 
@@ -1026,27 +1077,35 @@ async function loadAdmin(){
   await loadTeamLeaveOverview();
 }
 async function reviewLeave(id, status){
-  await sb.from('leave_requests').update({ status, reviewed_at: new Date().toISOString() }).eq('id', id);
+  const noteEl = document.getElementById(`note-leave-${id}`);
+  const review_note = noteEl ? noteEl.value.trim() || null : null;
+  await sb.from('leave_requests').update({ status, review_note, reviewed_by: currentEmp.id, reviewed_at: new Date().toISOString() }).eq('id', id);
   loadAdmin();
 }
 async function loadOvertimeAdmin(){
-  const { data } = await sb.from('overtime_requests').select('*, employees!overtime_requests_employee_id_fkey(name)').order('created_at',{ascending:false});
+  const { data } = await sb.from('overtime_requests')
+    .select('*, employees!overtime_requests_employee_id_fkey(name), reviewer:employees!overtime_requests_reviewed_by_fkey(name), submitter:employees!overtime_requests_submitted_by_fkey(name)')
+    .order('created_at',{ascending:false});
   const body = document.getElementById('pendingOvertimeBody');
   body.innerHTML = '';
   (data||[]).forEach(r=>{
     const st = r.status==='approved' ? '<span class="badge badge-ok">已核准</span>' :
                r.status==='rejected' ? '<span class="badge badge-bad">已駁回</span>' :
                '<span class="badge badge-pending">審核中</span>';
+    const nameCell = (r.employees?.name||'-') + (r.submitter ? `<div class="source-tag">由 ${r.submitter.name} 代登記</div>` : '');
     const actions = r.status==='pending'
-      ? `<button class="btn-gold" style="padding:5px 10px; font-size:12px;" onclick="reviewOvertime('${r.id}','approved')">核准</button>
+      ? `<input id="note-ot-${r.id}" type="text" placeholder="審核意見(選填)" style="width:130px; padding:4px 6px; font-size:12px; margin-bottom:4px; display:block;">
+         <button class="btn-gold" style="padding:5px 10px; font-size:12px;" onclick="reviewOvertime('${r.id}','approved')">核准</button>
          <button class="btn-outline" style="padding:5px 10px; font-size:12px;" onclick="reviewOvertime('${r.id}','rejected')">駁回</button>`
       : '';
-    body.innerHTML += `<tr><td>${r.employees?.name||'-'}</td><td>${r.work_date}</td><td>${r.hours}</td><td>${r.reason||''}</td><td>${st}</td><td>${actions}</td></tr>`;
+    body.innerHTML += `<tr><td>${nameCell}</td><td>${r.work_date}</td><td>${r.hours}</td><td>${r.reason||''}</td><td>${st}</td><td>${reviewInfoText(r, r.reviewer)}</td><td>${actions}</td></tr>`;
   });
   document.getElementById('pendingOvertimeEmpty').classList.toggle('hidden', (data||[]).length>0);
 }
 async function reviewOvertime(id, status){
-  await sb.from('overtime_requests').update({ status, reviewed_at: new Date().toISOString() }).eq('id', id);
+  const noteEl = document.getElementById(`note-ot-${id}`);
+  const review_note = noteEl ? noteEl.value.trim() || null : null;
+  await sb.from('overtime_requests').update({ status, review_note, reviewed_by: currentEmp.id, reviewed_at: new Date().toISOString() }).eq('id', id);
   loadOvertimeAdmin();
 }
 
@@ -1185,7 +1244,7 @@ function closeEmpDetail(){
 let correctionsCache = [];
 async function loadPendingCorrections(){
   const { data } = await sb.from('clock_correction_requests')
-    .select('*, employees!clock_correction_requests_employee_id_fkey(name)')
+    .select('*, employees!clock_correction_requests_employee_id_fkey(name), reviewer:employees!clock_correction_requests_reviewed_by_fkey(name)')
     .order('created_at',{ascending:false});
   correctionsCache = data || [];
   const body = document.getElementById('pendingCorrectionBody');
@@ -1196,16 +1255,19 @@ async function loadPendingCorrections(){
                r.status==='rejected' ? '<span class="badge badge-bad">已駁回</span>' :
                '<span class="badge badge-pending">審核中</span>';
     const actions = r.status==='pending'
-      ? `<button class="btn-gold" style="padding:5px 10px; font-size:12px;" onclick="reviewCorrection('${r.id}','approved')">核准</button>
+      ? `<input id="note-cor-${r.id}" type="text" placeholder="審核意見(選填)" style="width:130px; padding:4px 6px; font-size:12px; margin-bottom:4px; display:block;">
+         <button class="btn-gold" style="padding:5px 10px; font-size:12px;" onclick="reviewCorrection('${r.id}','approved')">核准</button>
          <button class="btn-outline" style="padding:5px 10px; font-size:12px;" onclick="reviewCorrection('${r.id}','rejected')">駁回</button>`
       : '';
-    body.innerHTML += `<tr><td>${r.employees?.name||'-'}</td><td>${r.work_date}</td><td>${r.check_in||'-'}</td><td>${r.check_out||'-'}</td><td>${r.reason||''}</td><td>${st}</td><td>${actions}</td></tr>`;
+    body.innerHTML += `<tr><td>${r.employees?.name||'-'}</td><td>${r.work_date}</td><td>${r.check_in||'-'}</td><td>${r.check_out||'-'}</td><td>${r.reason||''}</td><td>${st}</td><td>${reviewInfoText(r, r.reviewer)}</td><td>${actions}</td></tr>`;
   });
   document.getElementById('pendingCorrectionEmpty').classList.toggle('hidden', correctionsCache.length>0);
 }
 async function reviewCorrection(id, status){
   const record = correctionsCache.find(r=>r.id===id);
-  await sb.from('clock_correction_requests').update({ status, reviewed_by: currentEmp.id, reviewed_at: new Date().toISOString() }).eq('id', id);
+  const noteEl = document.getElementById(`note-cor-${id}`);
+  const review_note = noteEl ? noteEl.value.trim() || null : null;
+  await sb.from('clock_correction_requests').update({ status, review_note, reviewed_by: currentEmp.id, reviewed_at: new Date().toISOString() }).eq('id', id);
   if (status==='approved' && record){
     const { data: existing } = await sb.from('attendance').select('*')
       .eq('employee_id', record.employee_id).eq('work_date', record.work_date).maybeSingle();
@@ -1339,6 +1401,8 @@ async function loadScheduleTab(){
   const dateEl = document.getElementById('scheduleDate');
   if (!dateEl.value) dateEl.valueAsDate = new Date();
   await loadScheduleForDate();
+  await loadDayoffMgmt();
+  await loadBlackoutList();
 }
 async function loadScheduleForDate(){
   const dateEl = document.getElementById('scheduleDate');
@@ -1391,6 +1455,68 @@ async function toggleShift(employeeId, dateStr, isChecked){
   loadScheduleForDate();
 }
 
+/* ---------------- 員工排休管理(主管可駁回) ---------------- */
+async function loadDayoffMgmt(){
+  const body = document.getElementById('dayoffMgmtBody');
+  if (!body) return;
+  const today = todayStr();
+  const rangeEnd = fmtDate(new Date(Date.now() + 60*86400000));
+  const { data } = await sb.from('schedules')
+    .select('*, employees(name)')
+    .eq('shift_status','休假').eq('source','self')
+    .gte('work_date', today).lte('work_date', rangeEnd)
+    .order('work_date');
+  body.innerHTML = '';
+  (data||[]).forEach(r=>{
+    const st = r.status==='rejected'
+      ? `<span class="badge badge-bad">已駁回</span>${r.reject_reason?`<div class="source-tag">${r.reject_reason}</div>`:''}`
+      : '<span class="badge badge-ok">已核准</span>';
+    const actions = r.status==='rejected'
+      ? `<button class="btn-outline" style="padding:5px 10px; font-size:12px;" onclick="restoreDayoff('${r.id}')">恢復核准</button>`
+      : `<input id="reject-note-${r.id}" type="text" placeholder="駁回原因(選填)" style="width:130px; padding:4px 6px; font-size:12px; margin-bottom:4px; display:block;">
+         <button class="btn-outline" style="padding:5px 10px; font-size:12px;" onclick="rejectDayoff('${r.id}')">駁回</button>`;
+    body.innerHTML += `<tr><td>${r.employees?.name||'-'}</td><td>${r.work_date}</td><td>${st}</td><td>${actions}</td></tr>`;
+  });
+  document.getElementById('dayoffMgmtEmpty').classList.toggle('hidden', (data||[]).length>0);
+}
+async function rejectDayoff(id){
+  const noteEl = document.getElementById(`reject-note-${id}`);
+  const reject_reason = noteEl ? noteEl.value.trim() || null : null;
+  await sb.from('schedules').update({ status:'rejected', reject_reason, reviewed_by: currentEmp.id, reviewed_at: new Date().toISOString() }).eq('id', id);
+  loadDayoffMgmt();
+}
+async function restoreDayoff(id){
+  await sb.from('schedules').update({ status:'approved', reject_reason: null, reviewed_by: currentEmp.id, reviewed_at: new Date().toISOString() }).eq('id', id);
+  loadDayoffMgmt();
+}
+
+/* ---------------- 禁止排休日設定(主管) ---------------- */
+async function loadBlackoutList(){
+  const body = document.getElementById('blackoutListBody');
+  if (!body) return;
+  const today = todayStr();
+  const { data } = await sb.from('dayoff_blackout_dates').select('*').gte('work_date', today).order('work_date');
+  body.innerHTML = (data||[]).map(b=>
+    `<tr><td>${b.work_date}</td><td>${b.reason||''}</td><td><button class="btn-outline" style="padding:4px 10px; font-size:12px;" onclick="removeBlackoutDate('${b.id}')">移除</button></td></tr>`
+  ).join('');
+}
+async function addBlackoutDate(){
+  const work_date = document.getElementById('blackoutDate').value;
+  const reason = document.getElementById('blackoutReason').value.trim() || null;
+  const msgEl = document.getElementById('blackoutMsg');
+  if (!work_date){ msgEl.innerHTML = '<span class="msg bad">請選擇日期</span>'; return; }
+  const { error } = await sb.from('dayoff_blackout_dates').insert({ work_date, reason, created_by: currentEmp.id });
+  msgEl.innerHTML = error ? `<span class="msg bad">新增失敗:${error.message}</span>` : `<span class="msg ok">已新增禁止排休日</span>`;
+  if (!error){
+    document.getElementById('blackoutReason').value = '';
+    loadBlackoutList();
+  }
+}
+async function removeBlackoutDate(id){
+  await sb.from('dayoff_blackout_dates').delete().eq('id', id);
+  loadBlackoutList();
+}
+
 /* ---------------- 行事曆(全員可見) ---------------- */
 let calendarViewDate = new Date();
 function changeCalendarMonth(delta){
@@ -1412,7 +1538,7 @@ async function loadCalendarTab(){
     .eq('status','approved').lte('start_date', endStr).gte('end_date', startStr);
   const { data: offs } = await sb.from('schedules')
     .select('*, employees(name)')
-    .eq('shift_status','休假').gte('work_date', startStr).lte('work_date', endStr);
+    .eq('shift_status','休假').neq('status','rejected').gte('work_date', startStr).lte('work_date', endStr);
 
   const dayLeaves = {}, dayOffs = {};
   (leaves||[]).forEach(r=>{
